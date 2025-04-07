@@ -7,8 +7,8 @@ public class client
 {
     public static void main(String[] args) throws IOException
     {
-        final String SERVER_IP = "120.0.0.1"; //da aggiornare
-        final int SERVER_PORT = 80;
+        final String SERVER_IP = "127.0.0.1"; //da aggiornare
+        final int SERVER_PORT = 8080;
 
         try(Socket socket = new Socket(SERVER_IP, SERVER_PORT))
         {

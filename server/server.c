@@ -39,27 +39,27 @@ int main()
     socklen_t client_len = sizeof(client_address);
 
     //creazione della socket
-    if(fd1 = socket(AF_INET, SOCK_STREAM, 0) < 0)
+    if((fd1 = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         perror("Failed to create socket...\n");
         exit(1);
     }
 
     //inizializzazione della struttura sockaddr_in
-    bzero(&server_address, sizeof(server_address));
+    //bzero(&server_address, sizeof(server_address));
     server_address.sin_family = AF_INET; //IPv4
     server_address.sin_addr.s_addr = htons(INADDR_ANY); //accetta connessioni da qualsiasi indirizzo
-    server_address.sin_port = htons(80); //porta 80
+    server_address.sin_port = htons(8080); //porta 80
     
     //binding socket
-    if(bind(fd1, &server_address , sizeof(server_address)) != 0)
+    if((bind(fd1, &server_address , sizeof(server_address))) < 0)
     {
         perror("Failed to bind socket...\n");
         exit(1);
     }
 
     //listening
-    if(listen(fd1, BACKLOG) != 0)
+    if((listen(fd1, BACKLOG)) != 0)
     {
         perror("Failed to start listening...\n");
         exit(1);
