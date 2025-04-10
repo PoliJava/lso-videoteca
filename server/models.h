@@ -1,5 +1,6 @@
 
-#ifndef models.h
+#ifndef MODELS_H
+#define MODELS_H
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -8,8 +9,6 @@ struct Movie
 {
     u_int32_t id;
     char title[100];
-    char director[100];
-    int year;
     char genre[50];
     int duration; //in minutes
 
