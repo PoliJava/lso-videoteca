@@ -16,6 +16,52 @@
 
 sqlite3 *db;
 
+//funzioni registrazione e autenticazione utente
+void registerUser(sqlite3 *db, const char *username, const char *password)
+{
+    const char *sql = "INSERT INTO users (username, password) VALUES (?, ?)";
+    sqlite3_stmt *stmt;
+
+    if(sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
+    {
+        sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, password, -1, SQLITE_STATIC);
+
+        if(sqlite3_step(stmt) != SQLITE_DONE)
+        {
+            fprintf(stderr, "Error inserting user: %s\n", sqlite3_errmsg(db));
+        } else {
+            printf("User registered successfully.\n");
+        }
+    } else {
+        printf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
+    }
+    sqlite3_finalize(stmt);
+}
+
+int authenticateUser(sqlite3 *d, const char *username, const char *password)
+{
+    const char *sql = "SELECT 1 FROM users WHERE username = ? AND password = ?";
+    sqlite3_stmt *stmt;
+    int result = 0;
+
+    if(sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
+    {
+        sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, password, -1, SQLITE_STATIC);
+
+        if(sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            result = 1;
+        } else {
+            result = 0;
+        }
+    } else {
+        printf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
+    }
+    sqlite3_finalize(stmt);
+}
+
 void setupDatabase()
 {
     const char *dbName = "videoteca.db";
@@ -25,15 +71,18 @@ void setupDatabase()
         exit(1);
     }
 
-    const char *sql = "CREATE TABLE IF NOT EXISTS movies ( id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, genre NOT NULL, duration INTEGER NOT NULL, availableCopies INTEGER NOT NULL, totalCopies INTEGER NOT NULL);";
-
+    const char *sqlMovies = "CREATE TABLE IF NOT EXISTS movies ( id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, genre NOT NULL, duration INTEGER NOT NULL, availableCopies INTEGER NOT NULL, totalCopies INTEGER NOT NULL);";
+    const char *sqlUsers = "CREATE TABLE IF NOT EXISTS users ( username TEXT PRIMARY KEY NOT NULL, password TEXT NOT NULL);";
+    const char *sqlRentals = "CREATE TABLE IF NOT EXISTS rentals ( id INTEGER, username TEXT NOT NULL, rentaldate TEXT NOT NULL, returndate TEXT NOT NULL, FOREIGN KEY (id) REFERENCES movies(id), FOREIGN KEY (username) REFERENCES users(username));";
     char *errMsg = 0;
 
-    if(sqlite3_exec(db, sql, 0, 0, &errMsg) != SQLITE_OK)
-    {
-        fprintf(stderr, "SQL Error: %s\n", errMsg);
-        sqlite3_free(errMsg);
-    }
+    if (sqlite3_exec(db, sqlMovies, 0, 0, &errMsg) != SQLITE_OK ||
+        sqlite3_exec(db, sqlUsers, 0, 0, &errMsg) != SQLITE_OK ||
+        sqlite3_exec(db, sqlRentals, 0, 0, &errMsg) != SQLITE_OK)
+        {
+            fprintf(stderr, "SQL Error: %s\n", errMsg);
+            sqlite3_free(errMsg);
+        }
 }
 
 void loadMovies(struct Movie **movies, int *num_film)
@@ -63,15 +112,7 @@ void *gestione_client(void *arg)
 {
     int client_fd = *((int *)arg);
     memset(arg, 0, sizeof(arg));
-/*
-    //esempio temporaneo di lista film
-    struct Movie film[] = {
-        {1, "Il signore degli anelli", "Fantasy", 210, 1, 4},
-        {2, "Matrix", "Fantascienza", 180, 2, 2},
-        {3, "Soprano", "Crime", 120, 0, 3}
-    };
-    int num_film = sizeof(film)/sizeof(film[0]);
-*/
+
     struct Movie *movies = malloc(100 * sizeof(struct Movie));
     int num_film = 0;
     loadMovies(&movies, &num_film);
@@ -79,30 +120,40 @@ void *gestione_client(void *arg)
     char buffer[1024];
     bzero(buffer, sizeof(buffer));
 
-    char *msg = "Benvenuto alla videoteca!\n";
+    char *msg = "Benvenuto alla videoteca! \n1) Registrati\n2) Login\nScelta: \n";
     write(client_fd, msg, strlen(msg));
 
     //ricezione del messaggio dal client
     read(client_fd, buffer, sizeof(buffer));
     printf("Messaggio ricevuto dal client: %s\n", buffer);
 
-    char *menu = "\n==VIDEOTECA==\n1)Visualizza film\n2)Esci\nScelta: \n";
-    write(client_fd, menu, strlen(menu));
 
     bzero(buffer, sizeof(buffer));
     read(client_fd, buffer, sizeof(buffer));
     int scelta = atoi(buffer);
 
-    if(scelta == 1)
-    {
-        char lista [1024] = "";
-        char riga [128];
-        for(int i = 0; i < num_film; i++)
-        {
-            sprintf(riga, "%d - %s, %s, %d minuti, Copie totali: %d, Copie disponibili: %d", movies[i].id, movies[i].title, movies[i].genre, movies[i].duration, movies[i].totalCopies, movies[i].availableCopies);
-            strcat(lista, riga);
+    if (scelta == 1) {
+        // Registrazione utente
+        char username[50], password[50];
+        write(client_fd, "Inserisci username: ", strlen("Inserisci username: "));
+        read(client_fd, username, sizeof(username));
+        write(client_fd, "Inserisci password: ", strlen("Inserisci password: "));
+        read(client_fd, password, sizeof(password));
+        registerUser(db, username, password);
+    } else if (scelta == 2) {
+        // Autenticazione utente
+        char username[50], password[50];
+        write(client_fd, "Inserisci username: ", strlen("Inserisci username: "));
+        read(client_fd, username, sizeof(username));
+        write(client_fd, "Inserisci password: ", strlen("Inserisci password: "));
+        read(client_fd, password, sizeof(password));
+
+        if (authenticateUser(db, username, password)) {
+            write(client_fd, "Login riuscito!\n", strlen("Login riuscito!\n"));
+            // Procedi con altre operazioni per utenti autenticati
+        } else {
+            write(client_fd, "Login fallito.\n", strlen("Login fallito.\n"));
         }
-        write(client_fd, lista, sizeof(lista));
     }
 
     close(client_fd);
