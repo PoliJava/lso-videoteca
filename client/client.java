@@ -32,17 +32,40 @@ public class client
             }
 
             //4. Invia la scelta dell'utente
-            System.out.print("Inserisci scelta: ");
             String scelta = userInput.readLine();
             output.println(scelta);
 
-            //5. Legge la risposta
-            System.out.println("==Risposta del server==");
-            String responseLine;
-            while((responseLine = input.readLine()) != null)
-            {
-                System.out.println(responseLine);
+            if (scelta.equals("1")) {
+                // Registrazione
+                System.out.print("Inserisci username: ");
+                String username = userInput.readLine();
+                System.out.print("Inserisci password: ");
+                String password = userInput.readLine();
+                output.println(username);
+                output.println(password);
+                System.out.println("==Risposta del server==");
+                String responseLine;
+                while ((responseLine = input.readLine()) != null) {
+                    System.out.println(responseLine);
+                }
+            } else if (scelta.equals("2")) {
+                // Login
+                System.out.print("Inserisci username: ");
+                String username = userInput.readLine();
+                System.out.print("Inserisci password: ");
+                String password = userInput.readLine();
+                output.println(username);
+                output.println(password);
+                System.out.println("==Risposta del server==");
+                String responseLine;
+                while ((responseLine = input.readLine()) != null) {
+                    System.out.println(responseLine);
+                }
             }
+
+           //da implementare scelta noleggio film, restituzione film, ancora da implementare visualizza film (da server)
+
+           
         } catch(IOException e)
         {
             e.printStackTrace();

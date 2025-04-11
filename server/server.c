@@ -34,12 +34,12 @@ void registerUser(sqlite3 *db, const char *username, const char *password)
             printf("User registered successfully.\n");
         }
     } else {
-        printf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
+        fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
     }
     sqlite3_finalize(stmt);
 }
 
-int authenticateUser(sqlite3 *d, const char *username, const char *password)
+int authenticateUser(sqlite3 *db, const char *username, const char *password)
 {
     const char *sql = "SELECT 1 FROM users WHERE username = ? AND password = ?";
     sqlite3_stmt *stmt;
@@ -57,11 +57,13 @@ int authenticateUser(sqlite3 *d, const char *username, const char *password)
             result = 0;
         }
     } else {
-        printf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
+        fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
     }
     sqlite3_finalize(stmt);
+    return result;
 }
 
+//funzioni per database
 void setupDatabase()
 {
     const char *dbName = "videoteca.db";
@@ -73,7 +75,7 @@ void setupDatabase()
 
     const char *sqlMovies = "CREATE TABLE IF NOT EXISTS movies ( id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, genre NOT NULL, duration INTEGER NOT NULL, availableCopies INTEGER NOT NULL, totalCopies INTEGER NOT NULL);";
     const char *sqlUsers = "CREATE TABLE IF NOT EXISTS users ( username TEXT PRIMARY KEY NOT NULL, password TEXT NOT NULL);";
-    const char *sqlRentals = "CREATE TABLE IF NOT EXISTS rentals ( id INTEGER, username TEXT NOT NULL, rentaldate TEXT NOT NULL, returndate TEXT NOT NULL, FOREIGN KEY (id) REFERENCES movies(id), FOREIGN KEY (username) REFERENCES users(username));";
+    const char *sqlRentals = "CREATE TABLE IF NOT EXISTS rentals ( movieId INTEGER, username TEXT NOT NULL, rentaldate TEXT NOT NULL, returndate TEXT NOT NULL, FOREIGN KEY (movieId) REFERENCES movies(id), FOREIGN KEY (username) REFERENCES users(username));";
     char *errMsg = 0;
 
     if (sqlite3_exec(db, sqlMovies, 0, 0, &errMsg) != SQLITE_OK ||
@@ -106,7 +108,68 @@ void loadMovies(struct Movie **movies, int *num_film)
     sqlite3_finalize(stmt);
 }
 
+//funzioni per noleggio film e restituzione film
+void rentMovie(sqlite3 *db, int movieId, const char *username, const char *rentalDate, const char *returnDate)
+{
+    const char *sql = "INSERT INTO rentals (movieId, username, rentalDate, returnDate) VALUES (?, ?, ?, ?)";
+    sqlite3_stmt *stmt;
 
+    if(sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
+    {
+        sqlite3_bind_int(stmt, 1, movieId);
+        sqlite3_bind_text(stmt, 2, username, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 3, rentalDate, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 4, returnDate, -1, SQLITE_STATIC);
+
+        if(sqlite3_step(stmt) != SQLITE_DONE)
+        {
+            fprintf(stderr, "Error renting movie: %s\n", sqlite3_errmsg(db));
+        } else {
+            const char *updateSql = "UPDATE movies SET availableCopies = availableCopies - 1 WHERE id = ?";
+            sqlite3_stmt *updateStmt;
+            if(sqlite3_prepare_v2(db, updateSql, -1, &updateStmt, 0) == SQLITE_OK)
+            {
+                sqlite3_bind_int(updateStmt, 1, movieId);
+                sqlite3_step(updateStmt);
+            }
+            sqlite3_finalize(updateStmt);
+            printf("Movie rented successfully.\n");
+        }
+    } else {
+        fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
+    }
+    sqlite3_finalize(stmt);
+}
+
+void returnMovie(sqlite3 *db, int movieId, const char *username)
+{
+    const char *sql = "DELETE FROM rentals WHERE movieId = ? AND username = ?";
+    sqlite3_stmt *stmt;
+
+    if(sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
+    {
+        sqlite3_bind_int(stmt, 1, movieId);
+        sqlite3_bind_text(stmt, 2, username, -1, SQLITE_STATIC);
+
+        if(sqlite3_step(stmt) != SQLITE_DONE)
+        {
+            fprintf(stderr, "Error returning movie: %s\n", sqlite3_errmsg(db));
+        } else {
+            const char *updateSql = "UPDATE movies SET availableCopies = availableCopies + 1 WHERE id = ?";
+            sqlite3_stmt *updateStmt;
+            if(sqlite3_prepare_v2(db, updateSql, -1, &updateStmt, 0) == SQLITE_OK)
+            {
+                sqlite3_bind_int(updateStmt, 1, movieId);
+                sqlite3_step(updateStmt);
+            }
+            sqlite3_finalize(updateStmt);
+            printf("Movie returned succesfully!\n");
+        }
+    } else {
+        fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
+    }
+    sqlite3_finalize(stmt);
+}
 
 void *gestione_client(void *arg)
 {
@@ -135,17 +198,17 @@ void *gestione_client(void *arg)
     if (scelta == 1) {
         // Registrazione utente
         char username[50], password[50];
-        write(client_fd, "Inserisci username: ", strlen("Inserisci username: "));
+        write(client_fd, "Inserisci username: \n", strlen("Inserisci username: \n"));
         read(client_fd, username, sizeof(username));
-        write(client_fd, "Inserisci password: ", strlen("Inserisci password: "));
+        write(client_fd, "Inserisci password: \n", strlen("Inserisci password: \n"));
         read(client_fd, password, sizeof(password));
         registerUser(db, username, password);
     } else if (scelta == 2) {
         // Autenticazione utente
         char username[50], password[50];
-        write(client_fd, "Inserisci username: ", strlen("Inserisci username: "));
+        write(client_fd, "Inserisci username: \n", strlen("Inserisci username: \n"));
         read(client_fd, username, sizeof(username));
-        write(client_fd, "Inserisci password: ", strlen("Inserisci password: "));
+        write(client_fd, "Inserisci password: \n", strlen("Inserisci password: \n"));
         read(client_fd, password, sizeof(password));
 
         if (authenticateUser(db, username, password)) {
@@ -217,5 +280,6 @@ int main()
         pthread_detach(tid);
     }
     close(fd1);
+    sqlite3_close(db);
     return 0;
 }
