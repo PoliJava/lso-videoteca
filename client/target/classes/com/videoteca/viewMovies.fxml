@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Label?>
+
+<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" spacing="10" alignment="TOP_CENTER" style="-fx-padding: 20;" fx:controller="com.videoteca.ViewMoviesController">
+    <Label text="Lista dei film" style="-fx-font-size: 24px;"/>
+    <TableView fx:id="movieTable" prefWidth="600">
+        <columns>
+            <TableColumn fx:id="titleColumn" text="Titolo" prefWidth="150"/>
+            <TableColumn fx:id="genreColumn" text="Genere" prefWidth="150"/>
+            <TableColumn fx:id="durationColumn" text="Durata" prefWidth="150"/>
+            <TableColumn fx:id="copiesColumn" text="Copie Disponibili" prefWidth="150"/>
+            <TableColumn fx:id="actionColumn" text="Azione" prefWidth="150"/>
+        </columns>
+    </TableView>
+</VBox>

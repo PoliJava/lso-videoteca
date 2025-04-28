@@ -47,13 +47,22 @@ int authenticateUser(sqlite3 *db, const char *username, const char *password)
 
     if(sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
     {
+        printf("stmt: %s\n", sqlite3_sql(stmt));
         sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+        printf("username: %s\n", username);
         sqlite3_bind_text(stmt, 2, password, -1, SQLITE_STATIC);
+        printf("password: %s\n", password);
 
-        if(sqlite3_step(stmt) == SQLITE_ROW)
+        printf("stmt: %s\n", sqlite3_sql(stmt));
+        //print SQLITE_ROW
+        int stepResult = sqlite3_step(stmt);
+        
+        if(stepResult == SQLITE_ROW)
         {
+            printf("DEBUG - Login OK\n");
             result = 1;
         } else {
+            printf("DEBUG - Login FALLITO, stepResult = %d\n", stepResult);
             result = 0;
         }
     } else {
@@ -62,6 +71,33 @@ int authenticateUser(sqlite3 *db, const char *username, const char *password)
     sqlite3_finalize(stmt);
     return result;
 }
+
+void trimNewline(char *str) {
+    size_t len = strlen(str);
+    if(len > 0 && (str[len-1] == '\n' || str[len-1] == '\r'))
+        str[len-1] = '\0';
+}
+
+int read_line(int fd, char *buffer, size_t max_len) {
+    size_t i = 0;
+    char c;
+    while (i < max_len - 1) {
+        int n = read(fd, &c, 1);
+        if (n > 0) {
+            if (c == '\n') break;
+            buffer[i++] = c;
+        } else if (n == 0) {
+            // EOF
+            break;
+        } else {
+            // Error
+            return -1;
+        }
+    }
+    buffer[i] = '\0';
+    return i;
+}
+
 
 //funzioni per database
 void setupDatabase()
@@ -183,42 +219,56 @@ void *gestione_client(void *arg)
     char buffer[1024];
     bzero(buffer, sizeof(buffer));
 
-    char *msg = "Benvenuto alla videoteca! \n1) Registrati\n2) Login\nScelta: \n";
-    write(client_fd, msg, strlen(msg));
+    //char *msg = "Benvenuto alla videoteca! \n1) Registrati\n2) Login\nScelta: \n";
+    //write(client_fd, msg, strlen(msg));
 
     //ricezione del messaggio dal client
-    read(client_fd, buffer, sizeof(buffer));
+    read_line(client_fd, buffer, sizeof(buffer));
+    //read(client_fd, buffer, sizeof(buffer));
     printf("Messaggio ricevuto dal client: %s\n", buffer);
 
 
-    bzero(buffer, sizeof(buffer));
-    read(client_fd, buffer, sizeof(buffer));
+    //bzero(buffer, sizeof(buffer));
+    //printf("buffer: %s\n", buffer);
+    //read(client_fd, buffer, sizeof(buffer));
+
     int scelta = atoi(buffer);
+    printf("Scelta: %d\n", scelta);
 
     if (scelta == 1) {
         // Registrazione utente
         char username[50], password[50];
-        write(client_fd, "Inserisci username: \n", strlen("Inserisci username: \n"));
-        read(client_fd, username, sizeof(username));
-        write(client_fd, "Inserisci password: \n", strlen("Inserisci password: \n"));
-        read(client_fd, password, sizeof(password));
+        //write(client_fd, "Inserisci username: \n", strlen("Inserisci username: \n"));
+        //read(client_fd, username, sizeof(username));
+        //trimNewline(username);
+        read_line(client_fd, username, sizeof(username));
+        //printf("Username: %s\n", username);
+        //write(client_fd, "Inserisci password: \n", strlen("Inserisci password: \n"));
+        //read(client_fd, password, sizeof(password));
+        //trimNewline(password);
+        read_line(client_fd, password, sizeof(password));
         registerUser(db, username, password);
     } else if (scelta == 2) {
         // Autenticazione utente
         char username[50], password[50];
-        write(client_fd, "Inserisci username: \n", strlen("Inserisci username: \n"));
-        read(client_fd, username, sizeof(username));
-        write(client_fd, "Inserisci password: \n", strlen("Inserisci password: \n"));
-        read(client_fd, password, sizeof(password));
+        //write(client_fd, "Inserisci username: \n", strlen("Inserisci username: \n"));
+        //read(client_fd, username, sizeof(username));
+        //trimNewline(username);
+        read_line(client_fd, username, sizeof(username));
+        //printf("Username: %s\n", username);
+        //write(client_fd, "Inserisci password: \n", strlen("Inserisci password: \n"));
+        //read(client_fd, password, sizeof(password));
+        read_line(client_fd, password, sizeof(password));
+        //trimNewline(password);
 
-        if (authenticateUser(db, username, password)) {
+        if (authenticateUser(db, username, password) == 1) {
             write(client_fd, "Login riuscito!\n", strlen("Login riuscito!\n"));
             // Procedi con altre operazioni per utenti autenticati
         } else {
             write(client_fd, "Login fallito.\n", strlen("Login fallito.\n"));
         }
     }
-
+    sleep(1);
     close(client_fd);
     pthread_exit(NULL);
 }
