@@ -26,8 +26,23 @@ public class UserDashboardController {
         loadPage("viewCart.fxml");
     }
 
+    @FXML
+    private String username;
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
     private void loadPage(String page) throws IOException {
-        Node node = FXMLLoader.load(getClass().getResource(page));
+        FXMLLoader loader = new FXMLLoader(getClass().getResource(page));
+        Node node = loader.load();
+    
+        // Passaggio dell'username se si tratta della pagina del carrello
+        if (page.equals("viewCart.fxml")) {
+            ViewCartController controller = loader.getController();
+            controller.setUsername(Session.getUsername()); // <-- sostituisci con l'username reale
+        }
+    
         contentPane.getChildren().setAll(node);
     }
 }

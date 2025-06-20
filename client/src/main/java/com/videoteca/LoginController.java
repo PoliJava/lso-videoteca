@@ -22,11 +22,11 @@ public class LoginController {
     private TextField passwordField;
 
     @FXML
-    private void handleLogin() throws IOException {
-        String username = usernameField.getText();
+     void handleLogin() throws IOException {
+        String logName = usernameField.getText();
         String password = passwordField.getText();
 
-        if(username.isEmpty() || password.isEmpty()) {
+        if(logName.isEmpty() || password.isEmpty()) {
             System.out.println("Username and password cannot be empty.");
             return;
         }
@@ -41,7 +41,7 @@ public class LoginController {
                 output.flush();
 
                 //Invia username e password al server
-                output.write((username + "\n").getBytes());
+                output.write((logName + "\n").getBytes());
                 output.flush();
                 output.write((password + "\n").getBytes());
                 output.flush();
@@ -59,12 +59,13 @@ public class LoginController {
                     alert.setHeaderText(null);
                     alert.setContentText("Login riuscito!");
                     alert.showAndWait();
+                    Session.setUsername(logName);
                     App.setRoot("userDashboard");
                 } else{
                     Alert alert = new Alert(AlertType.ERROR);
                     alert.setTitle("Login Fallito");
                     alert.setHeaderText(null);
-                    alert.setContentText("Login fallito, credenziai errate");
+                    alert.setContentText("Login fallito, credenziali errate");
                     alert.showAndWait();
                     App.setRoot("landing");
                 }

@@ -103,20 +103,24 @@ int read_line(int fd, char *buffer, size_t max_len) {
 void setupDatabase()
 {
     const char *dbName = "videoteca.db";
-    if(sqlite3_open(dbName, &db) != SQLITE_OK)
+    int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX;
+    if(sqlite3_open_v2(dbName, &db, flags, NULL) != SQLITE_OK)
     {
         fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
         exit(1);
     }
 
-    const char *sqlMovies = "CREATE TABLE IF NOT EXISTS movies ( id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, genre NOT NULL, duration INTEGER NOT NULL, availableCopies INTEGER NOT NULL, totalCopies INTEGER NOT NULL);";
+    const char *sqlMovies = "CREATE TABLE IF NOT EXISTS movies ( id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, genre TEXT NOT NULL, duration INTEGER NOT NULL, availableCopies INTEGER NOT NULL, totalCopies INTEGER NOT NULL);";
     const char *sqlUsers = "CREATE TABLE IF NOT EXISTS users ( username TEXT PRIMARY KEY NOT NULL, password TEXT NOT NULL);";
-    const char *sqlRentals = "CREATE TABLE IF NOT EXISTS rentals ( movieId INTEGER, username TEXT NOT NULL, rentaldate TEXT NOT NULL, returndate TEXT NOT NULL, FOREIGN KEY (movieId) REFERENCES movies(id), FOREIGN KEY (username) REFERENCES users(username));";
+    const char *sqlRentals = "CREATE TABLE IF NOT EXISTS rentals ( movieId INTEGER, username TEXT NOT NULL, rentaldate TEXT NOT NULL, returndate TEXT NOT NULL, FOREIGN KEY (movieId) REFERENCES movies(id), FOREIGN KEY (username) REFERENCES users(username), UNIQUE(username,movieId));";
+    const char *sqlCart = "CREATE TABLE IF NOT EXISTS cart ( id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, movieid INTEGER NOT NULL, FOREIGN KEY (username) REFERENCES users(username), FOREIGN KEY (movieid) REFERENCES movies(id), UNIQUE(username,movieid));";
+
     char *errMsg = 0;
 
     if (sqlite3_exec(db, sqlMovies, 0, 0, &errMsg) != SQLITE_OK ||
         sqlite3_exec(db, sqlUsers, 0, 0, &errMsg) != SQLITE_OK ||
-        sqlite3_exec(db, sqlRentals, 0, 0, &errMsg) != SQLITE_OK)
+        sqlite3_exec(db, sqlRentals, 0, 0, &errMsg) != SQLITE_OK ||
+        sqlite3_exec(db, sqlCart, 0, 0, &errMsg) != SQLITE_OK)
         {
             fprintf(stderr, "SQL Error: %s\n", errMsg);
             sqlite3_free(errMsg);
@@ -207,6 +211,100 @@ void returnMovie(sqlite3 *db, int movieId, const char *username)
     sqlite3_finalize(stmt);
 }
 
+//funzioni per carrello
+void getCart(sqlite3 *db, const char *username)
+{
+    const char *sql = "SELECT movieId FROM cart WHERE username = ?";
+    sqlite3_stmt *stmt;
+
+    if(sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+
+        printf("Movies in cart for user: %s\n", username);
+        while(sqlite3_step(stmt) == SQLITE_ROW) {
+            int movieId = sqlite3_column_int(stmt, 0);
+            printf("Movie ID: %d\n", movieId);
+        }
+    } else {
+        fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
+    }
+}
+
+int addToCart(sqlite3 *db, const char *username, int movieId)
+{
+    const char *sql = "INSERT INTO cart (username, movieId) VALUES (?, ?)";
+    sqlite3_stmt *stmt;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+        sqlite3_bind_int(stmt, 2, movieId);
+
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            fprintf(stderr, "Error adding to cart: %s\n", sqlite3_errmsg(db));
+            sqlite3_finalize(stmt);
+            return -1;  // errore
+        } else {
+            printf("Movie added to cart successfully.\n");
+            sqlite3_finalize(stmt);
+            return 0;  // successo
+        }
+    } else {
+        fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
+        return 1;  // errore
+    }
+}
+
+int deleteFromCart(sqlite3 *db, const char *username, int movieid)
+{
+    const char *sql = "DELETE FROM cart WHERE username = ? AND movieid = ?";
+    sqlite3_stmt *stmt;
+    int rc;
+    int rows_affected = 0;
+
+    // Inizia una transazione esplicita
+    rc = sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Error beginning transaction: %s\n", sqlite3_errmsg(db));
+        printf("-1\n");
+        return -1;
+    }
+
+    if(sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+        sqlite3_bind_int(stmt, 2, movieid);
+
+        rc = sqlite3_step(stmt);
+        if (rc == SQLITE_DONE) {
+            rows_affected = sqlite3_changes(db);
+            printf("Deleted %d rows from cart\n", rows_affected);
+            
+            // Commit della transazione
+            rc = sqlite3_exec(db, "COMMIT", 0, 0, 0);
+            if (rc != SQLITE_OK) {
+                fprintf(stderr, "Error committing transaction: %s\n", sqlite3_errmsg(db));
+                sqlite3_finalize(stmt);
+                printf("-1\n");
+                return -1;
+            }
+        } else {
+            fprintf(stderr, "Error deleting from cart: %s\n", sqlite3_errmsg(db));
+            // Rollback in caso di errore
+            sqlite3_exec(db, "ROLLBACK", 0, 0, 0);
+            sqlite3_finalize(stmt);
+            printf("-1");
+            return -1;
+        }
+        sqlite3_finalize(stmt);
+        printf("%d\n", (rows_affected > 0) ? 0 : 1);
+        return (rows_affected > 0) ? 0 : 1; // 0=success, 1=no rows deleted
+    } else {
+        fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
+        sqlite3_exec(db, "ROLLBACK", 0, 0, 0);
+        return -1;
+    }
+}
+
+
 void *gestione_client(void *arg)
 {
     int client_fd = *((int *)arg);
@@ -238,6 +336,8 @@ void *gestione_client(void *arg)
     if (scelta == 1) {
         // Registrazione utente
         char username[50], password[50];
+        memset(username, 0, sizeof(username));
+        memset(password, 0, sizeof(password));
         //write(client_fd, "Inserisci username: \n", strlen("Inserisci username: \n"));
         //read(client_fd, username, sizeof(username));
         //trimNewline(username);
@@ -251,6 +351,8 @@ void *gestione_client(void *arg)
     } else if (scelta == 2) {
         // Autenticazione utente
         char username[50], password[50];
+        memset(username, 0, sizeof(username));
+        memset(password, 0, sizeof(password));
         //write(client_fd, "Inserisci username: \n", strlen("Inserisci username: \n"));
         //read(client_fd, username, sizeof(username));
         //trimNewline(username);
@@ -263,15 +365,88 @@ void *gestione_client(void *arg)
 
         if (authenticateUser(db, username, password) == 1) {
             write(client_fd, "Login riuscito!\n", strlen("Login riuscito!\n"));
-            // Procedi con altre operazioni per utenti autenticati
+           
         } else {
             write(client_fd, "Login fallito.\n", strlen("Login fallito.\n"));
         }
     }
+    else if (scelta == 3) { 
+        char username[100];
+        char id_film_str[10];
+        int id_film;
+        
+        memset(username, 0, sizeof(username));
+        memset(id_film_str, 0, sizeof(id_film_str));
+
+        // Leggi l'username dal client
+        if (read_line(client_fd, username, sizeof(username)) <= 0) {
+            printf("Errore durante la lettura dell'username.\n");
+            return;
+        }
+    
+        // Leggi l'ID del film
+        if (read_line(client_fd, id_film_str, sizeof(id_film_str)) <= 0) {
+            printf("Errore durante la lettura dell'id_film.\n");
+            return;
+        }
+    
+        // Converti l'ID del film in intero
+        id_film = atoi(id_film_str);
+    
+        // Debug
+        printf("Aggiunta al carrello richiesta da: %s per il film ID: %d\n", username, id_film);
+    
+        // Aggiungi al carrello nel database
+        if (addToCart(db, username, id_film) == 0) {
+            write(client_fd, "Film aggiunto al carrello con successo.\n", 40);
+        } else {
+            write(client_fd, "Errore nell'aggiunta al carrello.\n", 35);
+        }
+    }
+
+    else if (scelta == 4) { 
+        char username[100];
+        char id_film_str[10];
+        int id_film;
+        
+        memset(username, 0, sizeof(username));
+        memset(id_film_str, 0, sizeof(id_film_str));
+
+        // Leggi l'username dal client
+        if (read_line(client_fd, username, sizeof(username)) <= 0) {
+            printf("Errore durante la lettura dell'username.\n");
+            return;
+        }
+    
+        // Leggi l'ID del film
+        if (read_line(client_fd, id_film_str, sizeof(id_film_str)) <= 0) {
+            printf("Errore durante la lettura dell'id_film.\n");
+            return;
+        }
+    
+        // Converti l'ID del film in intero
+        id_film = atoi(id_film_str);
+    
+        // Debug
+        printf("\nCancellazione dal carrello richiesta da: %s\n per il film ID: %d\n", username, id_film);
+    
+        // Aggiungi al carrello nel database
+        if (deleteFromCart(db, username, id_film) == 0) {
+            printf("%s %d", db, username, id_film);
+            write(client_fd, "Film rimosso dal carrello con successo.\n", strlen("Film rimosso dal carrello con successo.\n"));
+        } else {
+            write(client_fd, "Errore nella rimozione dal carrello.\n", strlen("Errore nella rimozione dal carrello.\n"));
+        }
+    
+    
+    }
     sleep(1);
     close(client_fd);
+    printf("Client fd chiuso\n");
     pthread_exit(NULL);
 }
+
+
 
 int main()
 {
@@ -290,7 +465,7 @@ int main()
     //inizializzazione della struttura sockaddr_in
     //bzero(&server_address, sizeof(server_address));
     server_address.sin_family = AF_INET; //IPv4
-    server_address.sin_addr.s_addr = htons(INADDR_ANY); //accetta connessioni da qualsiasi indirizzo
+    server_address.sin_addr.s_addr = htons(INADDR_ANY); //accetta fg da qualsiasi indirizzo
     server_address.sin_port = htons(8080); //porta 80
     
     //binding socket

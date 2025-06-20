@@ -1,17 +1,23 @@
 package com.videoteca;
 
 public class Movie {
+    private int id;
     private String title;
     private String genre;
     private int duration;
     private int copies;
 
-
-    Movie(String title, String genre, int duration, int copies) {
+    
+    Movie(int id, String title, String genre, int duration, int copies) {
+        this.id = id;
         this.title = title;
         this.genre = genre;
         this.duration = duration;
         this.copies = copies;
+    }
+
+    public int getId() {
+        return id;
     }
 
     public String getTitle() {
