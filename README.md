@@ -1,0 +1,2 @@
+# lso-videoteca
+ Progetto LSO
