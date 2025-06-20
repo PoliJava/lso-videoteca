@@ -235,6 +235,8 @@ int addToCart(sqlite3 *db, const char *username, int movieId)
     const char *sql = "INSERT INTO cart (username, movieId) VALUES (?, ?)";
     sqlite3_stmt *stmt;
 
+    printf("Chiamata addToCart\n");
+
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK) {
         sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
         sqlite3_bind_int(stmt, 2, movieId);
@@ -440,6 +442,51 @@ void *gestione_client(void *arg)
     
     
     }
+
+    else if (scelta == 5) {
+    char username[100];
+    memset(username, 0, sizeof(username));
+
+    if (read_line(client_fd, username, sizeof(username)) <= 0) {
+        printf("Errore durante la lettura dell'username.\n");
+        return;
+    }
+
+    printf("Richiesta visualizzazione carrello per: %s\n", username);
+
+    sqlite3_stmt *stmt;
+    const char *sql = "SELECT m.id, m.title, m.genre, m.duration, m.availableCopies "
+                      "FROM movies AS m "
+                      "JOIN cart AS c ON c.movieId = m.id "
+                      "WHERE c.username = ?";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Errore nella preparazione della query: %s\n", sqlite3_errmsg(db));
+        write(client_fd, "ERROR\n", 6);
+        return;
+    }
+
+    sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int id = sqlite3_column_int(stmt, 0);
+        const unsigned char *title = sqlite3_column_text(stmt, 1);
+        const unsigned char *genre = sqlite3_column_text(stmt, 2);
+        int duration = sqlite3_column_int(stmt, 3);
+        int copies = sqlite3_column_int(stmt, 4);
+
+        char row[512];
+        snprintf(row, sizeof(row), "%d|%s|%s|%d|%d\n", id, title, genre, duration, copies);
+        write(client_fd, row, strlen(row));
+    }
+
+    sqlite3_finalize(stmt);
+
+    // Fine dati
+    write(client_fd, "END_OF_CART\n", strlen("END_OF_CART\n"));
+}
+
+
     sleep(1);
     close(client_fd);
     printf("Client fd chiuso\n");

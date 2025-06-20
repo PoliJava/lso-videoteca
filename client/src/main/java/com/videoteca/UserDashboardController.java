@@ -41,6 +41,7 @@ public class UserDashboardController {
         if (page.equals("viewCart.fxml")) {
             ViewCartController controller = loader.getController();
             controller.setUsername(Session.getUsername()); // <-- sostituisci con l'username reale
+            controller.loadCartItems();
         }
     
         contentPane.getChildren().setAll(node);

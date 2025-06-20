@@ -67,7 +67,8 @@ public class ViewMoviesController {
             //Ricevo la risposta dal server
             String response = in.readLine();
             System.out.println(response);
-
+            //ViewCartController v = new ViewCartController();
+            //v.loadCartItems();
             socket.close();
         } catch (Exception e) {
             e.printStackTrace();

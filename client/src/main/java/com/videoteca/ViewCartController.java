@@ -42,6 +42,7 @@ public class ViewCartController {
 
     public void setUsername(String logName) {
         this.username = logName;
+        System.out.println("setUsername chiamato!");
         loadCartItems(); // Carica i dati del carrello quando viene impostato l'username
     }
 
@@ -83,52 +84,63 @@ public class ViewCartController {
             private final Button deleteButton = new Button("Elimina");
     }
     ;*/
+
+    this.username = Session.getUsername();
+    System.out.println("TEST username: " + this.username);
+    loadCartItems();
+
     }
 
-    private void loadCartItems() {
+    void loadCartItems() {
         if (username == null) {
             System.out.println("Username is null");
             return;
         }
         
-        System.out.println("Username passato: " + username);
-
         Path currentDir = Paths.get("").toAbsolutePath();
         Path dbPath = currentDir.resolve("server").resolve("videoteca.db");
         Path dbAbsolutePath = dbPath.toAbsolutePath().normalize();
 
         String url = "jdbc:sqlite:" + dbAbsolutePath.toString();
 
-        try (Connection conn = DriverManager.getConnection(url)) {
-            System.out.println("??");
-            String sql = "SELECT m.title, m.id, m.genre, m.duration, m.availableCopies FROM movies AS m JOIN cart AS c ON c.movieId = m.id WHERE c.username = ?";
-            PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setString(1, username);
-            ResultSet rs = stmt.executeQuery();
+         try {
+        Socket socket = new Socket("localhost", 8080);
+        PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-            
+        // Invia la scelta 5 e l'username
+        out.println("5");
+        out.println(username);
 
-            movieList.clear();
-            while (rs.next()) {
-                Movie movie = new Movie(
-                    rs.getInt("id"),
-                    rs.getString("title"),
-                    rs.getString("genre"),
-                    rs.getInt("duration"),
-                    rs.getInt("availableCopies")
+        movieList.clear();
 
-                );
-                System.out.println("Film trovato: " + rs.getString("title"));
-                movieList.add(movie);
+        String line;
+        while ((line = in.readLine()) != null) {
+            if (line.equals("END_OF_CART")) {
+                break;
             }
 
-            cartTableView.setItems(movieList);
+            // Parsing: id|title|genre|duration|availableCopies
+            String[] parts = line.split("\\|");
+            if (parts.length == 5) {
+                String title = parts[1];
+                int availableCopies = Integer.parseInt(parts[4]);
 
-            
-
-        } catch (Exception e) {
-            e.printStackTrace();
+                // Costruisci il Movie con solo i dati necessari
+                Movie movie = new Movie();
+                movie.setTitle(title);
+                movie.setCopies(availableCopies);
+                movieList.add(movie);
+            } else {
+                System.out.println("Riga malformata: " + line);
+            }
         }
+
+        cartTableView.setItems(movieList);
+        socket.close();
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
     }
 
     private void deleteFromCart(int id){

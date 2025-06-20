@@ -16,6 +16,15 @@ public class Movie {
         this.copies = copies;
     }
 
+    public Movie() {
+        //TODO Auto-generated constructor stub
+        this.id = 0;
+        this.title = "";
+        this.genre = "";
+        this.duration = 0;
+        this.copies = 0;
+    }
+
     public int getId() {
         return id;
     }
@@ -34,6 +43,18 @@ public class Movie {
 
     public int getCopies() {
         return copies;
+    }
+
+    public void setTitle(String newTitle){
+        this.title = newTitle;
+    }
+
+    public void setDuration(int len){
+        this.duration = len;
+    }
+
+    public void setCopies(int availableCopies){
+        this.copies = availableCopies;
     }
 
     
