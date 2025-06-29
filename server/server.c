@@ -9,12 +9,27 @@
 #include <sys/types.h>
 #include <pthread.h>
 #include <sqlite3.h>
-
+#include <time.h>
 #include "models.h"
 
 #define BACKLOG 10
 
 sqlite3 *db;
+
+//funzione per il rental return
+
+void get_expiration_date(char *buffer, size_t size) {
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+
+    tm.tm_mon += 1;
+
+    // Normalizza il tempo (aumenta l'anno se il mese è dicembre)
+    mktime(&tm);
+
+    // Format: YYYY-MM-DD
+    strftime(buffer, size, "%Y-%m-%d", &tm);
+}
 
 //funzioni registrazione e autenticazione utente
 void registerUser(sqlite3 *db, const char *username, const char *password)
@@ -262,7 +277,8 @@ int deleteFromCart(sqlite3 *db, const char *username, int movieid)
     sqlite3_stmt *stmt;
     int rc;
     int rows_affected = 0;
-
+    //printf("Entered DelFromC\n");
+    printf("Deleting id %d for user %s\n", movieid, username);
     // Inizia una transazione esplicita
     rc = sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
     if (rc != SQLITE_OK) {
@@ -302,6 +318,7 @@ int deleteFromCart(sqlite3 *db, const char *username, int movieid)
     } else {
         fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
         sqlite3_exec(db, "ROLLBACK", 0, 0, 0);
+        printf("-1");
         return -1;
     }
 }
@@ -335,9 +352,11 @@ void *gestione_client(void *arg)
     int scelta = atoi(buffer);
     printf("Scelta: %d\n", scelta);
 
+    //TODO: Questo deve diventare uno switch ma ho paura che se lo tocco si scassa tutto
+
     if (scelta == 1) {
         // Registrazione utente
-        char username[50], password[50];
+        char username[50], password[50]; //Assolutamente non sicuro. C'è un'alternativa migliore?
         memset(username, 0, sizeof(username));
         memset(password, 0, sizeof(password));
         //write(client_fd, "Inserisci username: \n", strlen("Inserisci username: \n"));
@@ -485,7 +504,137 @@ void *gestione_client(void *arg)
     // Fine dati
     write(client_fd, "END_OF_CART\n", strlen("END_OF_CART\n"));
 }
+    else if(scelta == 6){ //bisogna modulizzare in una funzione, è un casino da leggere
 
+        char username[100];
+        int nrows = 0;
+        char buffer[32];
+        char movie_id[4];
+        char date[20];
+        char exp_date[20];
+
+        memset(username, 0, sizeof(username)); 
+        memset(buffer, 0, sizeof(buffer));
+        memset(movie_id, 0, sizeof(movie_id));
+        memset(date, 0, sizeof(date));
+        memset(exp_date, 0, sizeof(exp_date));
+        
+        time_t t = time(NULL);
+        struct tm tm = *localtime(&t);
+        strftime(date, sizeof(date), "%Y-%m-%d", &tm);  // Format: "YYYY-MM-DD"
+        get_expiration_date(exp_date, sizeof(exp_date));
+
+        if (read_line(client_fd, username, sizeof(username)) <= 0) {
+            printf("Errore durante la lettura dell'username.\n");
+            return;
+        }
+        
+       
+        // Leggi l'ID del film
+        if (read_line(client_fd, buffer, sizeof(buffer)) <= 0) { 
+            printf("Errore durante la lettura dei numeri di righe.\n");
+            return;
+        }
+
+       nrows = atoi(buffer);
+       printf("%d\n",nrows);
+
+        for(int i = 0 ; i < nrows ; i++){
+            if (read_line(client_fd,movie_id, sizeof(movie_id)) <= 0) {
+                printf("Errore durante la lettura degli id.\n");
+                return;
+            }
+
+            int id = atoi(movie_id);
+
+            sqlite3_stmt *stmt;
+            const char *sql = "INSERT INTO rentals (username, movieId, rentaldate, returndate) VALUES (?, ?, ?, ?)";
+
+            if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+                fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db));
+                return;
+            }
+
+            sqlite3_bind_text(stmt, 1, username, -1, SQLITE_TRANSIENT);  // Bind username al primo ?
+            sqlite3_bind_int(stmt, 2, id);                               // Bind id al secondo ?
+            sqlite3_bind_text(stmt, 3, date, -1, SQLITE_TRANSIENT);                           //Terzo ?
+            sqlite3_bind_text(stmt, 4, exp_date, -1, SQLITE_TRANSIENT);                       //Quarto ?
+
+            if (sqlite3_step(stmt) != SQLITE_DONE) {
+                fprintf(stderr, "Execution failed: %s\n", sqlite3_errmsg(db));
+                return;
+                }           
+
+            //printf("Aggiunto %d ai rentals con successo.\n", id);
+            write(client_fd, "Film aggiunto al carrello con successo.\n", 40);
+            sqlite3_finalize(stmt);
+            
+        }
+
+        sqlite3_stmt *stmt_clear;
+        const char *sql_clear = "DELETE FROM CART WHERE USERNAME = ?";
+
+        if (sqlite3_prepare_v2(db, sql_clear, -1, &stmt_clear, NULL) != SQLITE_OK) {
+                fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db));
+                return;
+            }
+        
+         sqlite3_bind_text(stmt_clear, 1, username, -1, SQLITE_TRANSIENT);
+        
+         if (sqlite3_step(stmt_clear) != SQLITE_DONE) {
+                fprintf(stderr, "Execution failed: %s\n", sqlite3_errmsg(db));
+                }           
+
+    }
+
+    else if(scelta == 7){
+        char username[100];
+
+        memset(username, 0, sizeof(username));
+
+         if (read_line(client_fd, username, sizeof(username)) <= 0) {
+            printf("Errore durante la lettura dell'username.\n");
+            return;
+        }
+
+    printf("Richiesta visualizzazione noleggi per: %s\n", username);
+
+    sqlite3_stmt *stmt;
+    const char *sql = "SELECT m.id, m.title, m.genre, m.duration, m.availableCopies, r.rentaldate, r.returndate "
+                      "FROM movies AS m "
+                      "JOIN rentals AS r ON r.movieId = r.id "
+                      "WHERE r.username = ?";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Errore nella preparazione della query: %s\n", sqlite3_errmsg(db));
+        write(client_fd, "ERROR\n", 6);
+        return;
+    }
+
+    sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        int id = sqlite3_column_int(stmt, 0);
+        const unsigned char *title = sqlite3_column_text(stmt, 1);
+        const unsigned char *genre = sqlite3_column_text(stmt, 2);
+        int duration = sqlite3_column_int(stmt, 3);
+        int copies = sqlite3_column_int(stmt, 4);
+
+        char row[512];
+        snprintf(row, sizeof(row), "%d|%s|%s|%d|%d\n", id, title, genre, duration, copies);
+        write(client_fd, row, strlen(row));
+    }
+
+    sqlite3_finalize(stmt);
+
+    // Fine dati
+    write(client_fd, "END_OF_CART\n", strlen("END_OF_CART\n"));
+    }
+
+    else if(scelta == 8){
+        //gestione della restituzione
+
+    }
 
     sleep(1);
     close(client_fd);

@@ -12,7 +12,6 @@
             <TableColumn fx:id="titleColumn" text="Titolo" prefWidth="150"/>
             <TableColumn fx:id="genreColumn" text="Genere" prefWidth="150"/>
             <TableColumn fx:id="durationColumn" text="Durata" prefWidth="150"/>
-            <TableColumn fx:id="copiesColumn" text="Copie Disponibili" prefWidth="150"/>
             <TableColumn fx:id="actionColumn" text="Aggiungi a Carrello" prefWidth="150"/>
         </columns>
     </TableView>

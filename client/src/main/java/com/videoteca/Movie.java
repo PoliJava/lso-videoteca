@@ -16,8 +16,7 @@ public class Movie {
         this.copies = copies;
     }
 
-    public Movie() {
-        //TODO Auto-generated constructor stub
+    public Movie() {  
         this.id = 0;
         this.title = "";
         this.genre = "";
@@ -57,6 +56,9 @@ public class Movie {
         this.copies = availableCopies;
     }
 
+    public void setId(int movieId){
+        this.id = movieId; 
+    }
     
 
 }

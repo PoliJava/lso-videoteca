@@ -1,15 +1,18 @@
 package com.videoteca;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.ArrayList;
 
 import javafx.fxml.FXML;
 import javafx.application.Platform;
@@ -31,14 +34,16 @@ public class ViewCartController {
     private TableColumn<Movie, String> titleColumn;
 
     @FXML
-    private TableColumn<Movie, String> copiesColumn;
-
-    @FXML
     private TableColumn<Movie, Void> actionColumn;
 
+    @FXML 
+    private Button checkoutButton;
+    
     private ObservableList<Movie> movieList = FXCollections.observableArrayList();
 
     private String username;
+
+
 
     public void setUsername(String logName) {
         this.username = logName;
@@ -70,13 +75,31 @@ public class ViewCartController {
             }
         }
     });
+
+    checkoutButton.setOnAction(event ->{ //fa in modo che il checkout button salvi la lista degli id dei film da aggiungere al DB 
+        ArrayList<Integer> allMovies = new ArrayList<>();
+        int nrows = 0;
+
+        for(Movie movie : movieList){
+            allMovies.add(movie.getId());
+            }
+
+        nrows = allMovies.size();
+        System.out.println(nrows);
+        
+        try {
+            handleCheckout(allMovies, nrows);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    
+    });
 }
 
     @FXML
     public void initialize() {
         // Collega la colonna al metodo getTitle() della classe Movie
         titleColumn.setCellValueFactory(new PropertyValueFactory<>("title"));
-        copiesColumn.setCellValueFactory(new PropertyValueFactory<>("copies"));
         addButtonToTable(); //mette il pulsante
          // Aggiungi un pulsante "Elimina" per ogni riga
     /*actionColumn.setCellFactory(col -> {
@@ -85,9 +108,11 @@ public class ViewCartController {
     }
     ;*/
 
-    this.username = Session.getUsername();
-    System.out.println("TEST username: " + this.username);
+   if (this.username != null) {
     loadCartItems();
+} else {
+    System.err.println("Username non disponibile.");
+}
 
     }
 
@@ -97,11 +122,11 @@ public class ViewCartController {
             return;
         }
         
-        Path currentDir = Paths.get("").toAbsolutePath();
+        /*Path currentDir = Paths.get("").toAbsolutePath();
         Path dbPath = currentDir.resolve("server").resolve("videoteca.db");
         Path dbAbsolutePath = dbPath.toAbsolutePath().normalize();
-
         String url = "jdbc:sqlite:" + dbAbsolutePath.toString();
+        Usato in precedenza, ora da rimuovere*/
 
          try {
         Socket socket = new Socket("localhost", 8080);
@@ -123,12 +148,17 @@ public class ViewCartController {
             // Parsing: id|title|genre|duration|availableCopies
             String[] parts = line.split("\\|");
             if (parts.length == 5) {
+                int id = Integer.parseInt(parts[0]);
                 String title = parts[1];
+                String genre = parts[2];
+                int duration = Integer.parseInt(parts[3]);
                 int availableCopies = Integer.parseInt(parts[4]);
+                
 
                 // Costruisci il Movie con solo i dati necessari
                 Movie movie = new Movie();
                 movie.setTitle(title);
+                movie.setId(id);
                 movie.setCopies(availableCopies);
                 movieList.add(movie);
             } else {
@@ -179,4 +209,38 @@ public class ViewCartController {
         });
     }
     }
+
+    @FXML
+    private void handleCheckout(ArrayList<Integer> toRent, int rows) throws UnknownHostException, IOException {
+    System.out.println("Checkout cliccato!");
+
+        Socket socket = new Socket("localhost", 8080);
+        PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+        out.println("6"); //manda al server l'ordine di inserire il rental
+        out.println(this.username);
+        out.println(rows);
+        for (Integer id : toRent){
+            out.println(id); //stampa gli id di tutti i film da inserire
+            System.out.println(id);
+        }
+
+        String response = in.readLine();
+        System.out.println(response);
+
+        if (!response.contains("successo")) {
+            // Mostra un messaggio di errore all'utente
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Errore");
+                alert.setHeaderText("Impossibile rimuovere il film");
+                alert.setContentText("Si è verificato un errore durante la rimozione dal carrello.");
+                alert.showAndWait();
+            });
+        }
+        else{   movieList.clear();  }
+        
+}
+
 }

@@ -30,8 +30,6 @@ public class ViewMoviesController {
     @FXML
     private TableColumn<Movie, Integer> durationColumn;
     @FXML
-    private TableColumn<Movie, Integer> copiesColumn;
-    @FXML
     private TableColumn<Movie, Void> actionColumn;
 
     private ObservableList<Movie> movieList = FXCollections.observableArrayList();
@@ -46,7 +44,7 @@ public class ViewMoviesController {
         titleColumn.setCellValueFactory(new PropertyValueFactory<>("title"));
         genreColumn.setCellValueFactory(new PropertyValueFactory<>("genre"));
         durationColumn.setCellValueFactory(new PropertyValueFactory<>("duration"));
-        copiesColumn.setCellValueFactory(new PropertyValueFactory<>("copies"));
+
 
         loadMoviesFromDatabase();
 
