@@ -237,37 +237,66 @@ void rentMovie(sqlite3 *db, int movieId, const char *username, const char *renta
 
 void returnMovie(sqlite3 *db, int movieId, const char *username)
 {
-    const char *sql = "DELETE FROM rentals WHERE movieId = ? AND username = ?";
+    const char *sql = "DELETE FROM rentals WHERE username = ? AND movieId = ?";
     sqlite3_stmt *stmt;
+    int rc;
+    int rows_affected = 0;
+    // printf("Entered DelFromC\n");
+    printf("Deleting id %d for user %s\n", movieId, username);
+    // Inizia una transazione esplicita
+    rc = sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
+    if (rc != SQLITE_OK)
+    {
+        fprintf(stderr, "Error beginning transaction: %s\n", sqlite3_errmsg(db));
+        printf("-1\n");
+        return -1;
+    }
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
     {
-        sqlite3_bind_int(stmt, 1, movieId);
-        sqlite3_bind_text(stmt, 2, username, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+        sqlite3_bind_int(stmt, 2, movieId);
 
-        if (sqlite3_step(stmt) != SQLITE_DONE)
+        rc = sqlite3_step(stmt);
+        if (rc == SQLITE_DONE)
         {
-            fprintf(stderr, "Error returning movie: %s\n", sqlite3_errmsg(db));
+            rows_affected = sqlite3_changes(db);
+            printf("Deleted %d rows from cart\n", rows_affected);
+
+            // Commit della transazione
+            rc = sqlite3_exec(db, "COMMIT", 0, 0, 0);
+            if (rc != SQLITE_OK)
+            {
+                fprintf(stderr, "Error committing transaction: %s\n", sqlite3_errmsg(db));
+                sqlite3_finalize(stmt);
+                printf("-1\n");
+                return -1;
+            }
         }
         else
         {
-            const char *updateSql = "UPDATE movies SET availableCopies = availableCopies + 1 WHERE id = ?";
-            sqlite3_stmt *updateStmt;
-            if (sqlite3_prepare_v2(db, updateSql, -1, &updateStmt, 0) == SQLITE_OK)
-            {
-                sqlite3_bind_int(updateStmt, 1, movieId);
-                sqlite3_step(updateStmt);
-            }
-            sqlite3_finalize(updateStmt);
-            printf("Movie returned succesfully!\n");
+            fprintf(stderr, "Error deleting from cart: %s\n", sqlite3_errmsg(db));
+            // Rollback in caso di errore
+            sqlite3_exec(db, "ROLLBACK", 0, 0, 0);
+            sqlite3_finalize(stmt);
+            printf("-1");
+            return -1;
         }
+        sqlite3_finalize(stmt);
+        printf("%d\n", (rows_affected > 0) ? 0 : 1);
+        return (rows_affected > 0) ? 0 : 1; // 0=success, 1=no rows deleted
     }
     else
     {
         fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
+        sqlite3_exec(db, "ROLLBACK", 0, 0, 0);
+        printf("-1");
+        return -1;
     }
+        
     sqlite3_finalize(stmt);
 }
+
 
 // funzioni per carrello
 void getCart(sqlite3 *db, const char *username)
@@ -655,7 +684,7 @@ void *gestione_client(void *arg)
         }
 
         sqlite3_stmt *stmt_clear;
-        const char *sql_clear = "DELETE FROM CART WHERE USERNAME = ?";
+        const char *sql_clear = "DELETE FROM cart WHERE USERNAME = ?";
 
         if (sqlite3_prepare_v2(db, sql_clear, -1, &stmt_clear, NULL) != SQLITE_OK)
         {
@@ -749,8 +778,8 @@ void *gestione_client(void *arg)
             return;
         }
 
-        sqlite3_stmt *stmt;
-        const char *sql = "DELETE FROM RENTALS WHERE username = ? AND movieId = ?";
+        /*sqlite3_stmt *stmt;
+        const char *sql = "DELETE FROM rentals WHERE username = ? AND movieId = ?";
 
         if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
         {
@@ -760,14 +789,15 @@ void *gestione_client(void *arg)
         }
 
         sqlite3_bind_text(stmt, 1, username, -1, SQLITE_TRANSIENT);
-        sqlite3_bind_int(stmt, 1, username);
+        sqlite3_bind_int(stmt, 2, rent_id);
 
         if (sqlite3_step(stmt) != SQLITE_DONE)
         {
             fprintf(stderr, "Execution failed: %s\n", sqlite3_errmsg(db));
         }
 
-        sqlite3_finalize(stmt);
+        sqlite3_finalize(stmt);*/
+        returnMovie(db,  rent_id, username);
     }
 
     sleep(1);

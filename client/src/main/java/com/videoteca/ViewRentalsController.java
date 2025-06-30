@@ -44,14 +44,17 @@ public class ViewRentalsController {
     }
 
     private void returnMovieToServer(RentalMovie selectedMovie) {
-        try (Socket socket = new Socket("localhost", 12345);
+        try (Socket socket = new Socket("localhost", 8080);
                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
             // Invia comando al server
             out.println("8");
+            System.out.println("8");
             out.println(Session.username);
+            System.out.println(Session.username);
             out.println(selectedMovie.getId()); // supponendo che Movie abbia un ID
+            System.out.println(selectedMovie.getId());
             // Puoi anche inviare il titolo o altri dati se necessario
             String response = in.readLine();
             System.out.println("Risposta dal server: " + response);
@@ -59,6 +62,9 @@ public class ViewRentalsController {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        int idx = rentalMovies.indexOf(selectedMovie);
+        rentalMovies.remove(idx);
+        loadRentItems();
     }
 
     private void setButton() {
@@ -145,6 +151,7 @@ public class ViewRentalsController {
 
             rentalTableView.setItems(rentalMovies);
             socket.close();
+            
         } catch (Exception e) {
             e.printStackTrace();
         }
