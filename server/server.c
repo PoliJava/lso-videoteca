@@ -125,17 +125,34 @@ void setupDatabase()
         exit(1);
     }
 
-    const char *sqlMovies = "CREATE TABLE IF NOT EXISTS movies ( id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, genre TEXT NOT NULL, duration INTEGER NOT NULL, availableCopies INTEGER NOT NULL, totalCopies INTEGER NOT NULL);";
+    const char *sqlMovies = "CREATE TABLE IF NOT EXISTS movies ( id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, genre TEXT NOT NULL, duration INTEGER NOT NULL, availableCopies INTEGER NOT NULL CHECK (availableCopies >= 0), totalCopies INTEGER NOT NULL);";
     const char *sqlUsers = "CREATE TABLE IF NOT EXISTS users ( username TEXT PRIMARY KEY NOT NULL, password TEXT NOT NULL);";
     const char *sqlRentals = "CREATE TABLE IF NOT EXISTS rentals ( movieId INTEGER, username TEXT NOT NULL, rentaldate TEXT NOT NULL, returndate TEXT NOT NULL, FOREIGN KEY (movieId) REFERENCES movies(id), FOREIGN KEY (username) REFERENCES users(username), UNIQUE(username,movieId));";
     const char *sqlCart = "CREATE TABLE IF NOT EXISTS cart ( id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, movieid INTEGER NOT NULL, FOREIGN KEY (username) REFERENCES users(username), FOREIGN KEY (movieid) REFERENCES movies(id), UNIQUE(username,movieid));";
-
+    const char *sqlDec = "DROP TRIGGER IF EXISTS decrease_available_copies; "
+                    "CREATE TRIGGER decrease_available_copies "
+                    "AFTER INSERT ON rentals "
+                    "FOR EACH ROW "
+                    "BEGIN "
+                    "UPDATE movies SET availableCopies = availableCopies - 1 WHERE id = NEW.movieId; "
+                    "END;";
+    const char *sqlInc = "DROP TRIGGER IF EXISTS increase_available_copies; "
+                     "CREATE TRIGGER increase_available_copies "
+                     "AFTER DELETE ON rentals "
+                     "FOR EACH ROW "
+                     "BEGIN "
+                     "UPDATE movies SET availableCopies = availableCopies + 1 WHERE id = OLD.movieId; "
+                     "END;";
+    //const char *sqlUpd = "UPDATE movies SET availableCopies = CASE WHEN availableCopies > 0 THEN availableCopies - 1 ELSE 0 END WHERE id = NEW.movieId;";
     char *errMsg = 0;
 
     if (sqlite3_exec(db, sqlMovies, 0, 0, &errMsg) != SQLITE_OK ||
         sqlite3_exec(db, sqlUsers, 0, 0, &errMsg) != SQLITE_OK ||
         sqlite3_exec(db, sqlRentals, 0, 0, &errMsg) != SQLITE_OK ||
-        sqlite3_exec(db, sqlCart, 0, 0, &errMsg) != SQLITE_OK)
+        sqlite3_exec(db, sqlCart, 0, 0, &errMsg) != SQLITE_OK ||
+        sqlite3_exec(db, sqlDec, 0, 0, &errMsg) != SQLITE_OK ||
+        sqlite3_exec(db, sqlInc, 0, 0, &errMsg) != SQLITE_OK /*||
+        sqlite3_exec(db, sqlUpd, 0, 0, &errMsg) != SQLITE_OK*/)
         {
             fprintf(stderr, "SQL Error: %s\n", errMsg);
             sqlite3_free(errMsg);
@@ -164,8 +181,7 @@ void loadMovies(struct Movie **movies, int *num_film)
 }
 
 //funzioni per noleggio film e restituzione film
-void rentMovie(sqlite3 *db, int movieId, const char *username, const char *rentalDate, const char *returnDate)
-{
+void rentMovie(sqlite3 *db, int movieId, const char *username, const char *rentalDate, const char *returnDate) {
     const char *sql = "INSERT INTO rentals (movieId, username, rentalDate, returnDate) VALUES (?, ?, ?, ?)";
     sqlite3_stmt *stmt;
 
@@ -619,9 +635,14 @@ void *gestione_client(void *arg)
         const unsigned char *genre = sqlite3_column_text(stmt, 2);
         int duration = sqlite3_column_int(stmt, 3);
         int copies = sqlite3_column_int(stmt, 4);
+        const unsigned char *rentalDate = sqlite3_column_text(stmt,5);
+        const unsigned char *expirationDate = sqlite3_column_text(stmt,6);
+        //paura: la data è formattata nello stesso modo fra come noi la segniamo e come Java la mette in LocalDate?
 
-        char row[512];
-        snprintf(row, sizeof(row), "%d|%s|%s|%d|%d\n", id, title, genre, duration, copies);
+        printf("%s data - %s scadenza", rentalDate, expirationDate);
+        char row[1024];
+        memset(row,0,sizeof(row));
+        snprintf(row, sizeof(row), "%d|%s|%s|%d|%d|%s|%s\n", id, title, genre, duration, copies, rentalDate, expirationDate);
         write(client_fd, row, strlen(row));
     }
 
@@ -634,7 +655,45 @@ void *gestione_client(void *arg)
     else if(scelta == 8){
         //gestione della restituzione
 
+        /*cosa ci serve che faccia?
+        il client deve mandare al server l'username e l'id del film in prestito
+        il server deve cancellare da rentals il suddetto id
+        aggiornamento copie disponibili: farlo tramite vincoli? sì ti prego.*/
+
+        char username[100];
+        int rent_id;
+
+        memset(username, 0, sizeof(username));
+
+          if (read_line(client_fd, username, sizeof(username)) <= 0) {
+            printf("Errore durante la lettura dell'username.\n");
+            return;
+        }
+        
+        if (read_line(client_fd, rent_id, sizeof(rent_id)) <= 0) { 
+            printf("Errore durante la lettura dei numeri di righe.\n");
+            return;
+        }
+
+        sqlite3_stmt *stmt;
+        const char *sql = "DELETE FROM RENTALS WHERE username = ? AND movieId = ?";
+
+        if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Errore nella preparazione della query: %s\n", sqlite3_errmsg(db));
+        write(client_fd, "ERROR\n", 6);
+        return;
     }
+    
+    sqlite3_bind_text(stmt, 1, username, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 1, username);
+
+         if (sqlite3_step(stmt) != SQLITE_DONE) {
+                fprintf(stderr, "Execution failed: %s\n", sqlite3_errmsg(db));
+                }           
+
+    sqlite3_finalize(stmt);
+
+    }   
 
     sleep(1);
     close(client_fd);

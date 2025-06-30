@@ -43,6 +43,11 @@ public class UserDashboardController {
             controller.setUsername(Session.getUsername()); // <-- sostituisci con l'username reale
             controller.loadCartItems();
         }
+
+        if(page.equals("viewRentedMovies.fxml")){
+            ViewRentalsController rentcontr = loader.getController();
+            rentcontr.loadRentItems();
+        }
     
         contentPane.getChildren().setAll(node);
     }

@@ -131,9 +131,11 @@ void loadRentItems() {
                 //String genre = parts[2];
                 //int duration = Integer.parseInt(parts[3]);
                 int availableCopies = Integer.parseInt(parts[4]);
-                LocalDate rentalDate = LocalDate.parse(parts[5]);
-                LocalDate expirationDate = LocalDate.parse(parts[6]);
+                String rentalDate = parts[5];
+                String expirationDate = parts[6];
                 
+                System.out.println(rentalDate);
+                System.out.println(expirationDate);
 
                 // Costruisci il Movie con solo i dati necessari
                 RentalMovie newmovie = new RentalMovie();
@@ -153,7 +155,9 @@ void loadRentItems() {
     } catch (Exception e) {
         e.printStackTrace();
     }
-    }  
+    }
+
+
 
 
 }

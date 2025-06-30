@@ -1,13 +1,13 @@
 package com.videoteca;
 
-import java.time.LocalDate;
+
 
 public class RentalMovie {
     private Movie movie;
-    private LocalDate rentalDate;
-    private LocalDate expirationDate;
+    private String rentalDate;
+    private String expirationDate;
 
-    public RentalMovie(Movie movie, LocalDate rentalDate, LocalDate expirationDate) {
+    public RentalMovie(Movie movie, String rentalDate, String expirationDate) {
         this.movie = movie;
         this.rentalDate = rentalDate;
         this.expirationDate = expirationDate;
@@ -37,19 +37,19 @@ public class RentalMovie {
         return movie.getId();
     }
 
-    public LocalDate getRentalDate() {
+    public String getRentalDate() {
         return rentalDate;
     }
 
-    public LocalDate getExpirationDate() {
+    public String getExpirationDate() {
         return expirationDate;
     }
 
-    public void setRentalDate(LocalDate x){
+    public void setRentalDate(String x){
         this.rentalDate = x;
     }
 
-    public void setExpirationDate(LocalDate x){
+    public void setExpirationDate(String x){
         this.expirationDate = x;
     }
 
