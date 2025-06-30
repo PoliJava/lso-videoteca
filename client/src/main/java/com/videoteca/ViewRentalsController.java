@@ -20,8 +20,6 @@ import java.time.LocalDate;
 import javafx.util.Callback;
 import javafx.scene.control.TableCell;
 
-
-
 public class ViewRentalsController {
     private ObservableList<RentalMovie> rentalMovies = FXCollections.observableArrayList();
 
@@ -36,7 +34,6 @@ public class ViewRentalsController {
     @FXML
     private TableColumn<RentalMovie, Void> actionColumn;
 
-
     @FXML
     private void initialize() throws SQLException {
         titleColumn.setCellValueFactory(new PropertyValueFactory<>("title"));
@@ -46,118 +43,111 @@ public class ViewRentalsController {
         setButton();
     }
 
-private void returnMovieToServer(RentalMovie selectedMovie) {
-    try (Socket socket = new Socket("localhost", 12345);
-         PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-         BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+    private void returnMovieToServer(RentalMovie selectedMovie) {
+        try (Socket socket = new Socket("localhost", 12345);
+                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
-        // Invia comando al server
-        out.println("8");
-        out.println(Session.username);
-        out.println(selectedMovie.getId()); // supponendo che Movie abbia un ID
-        // Puoi anche inviare il titolo o altri dati se necessario
-        String response = in.readLine();
-        System.out.println("Risposta dal server: " + response);
+            // Invia comando al server
+            out.println("8");
+            out.println(Session.username);
+            out.println(selectedMovie.getId()); // supponendo che Movie abbia un ID
+            // Puoi anche inviare il titolo o altri dati se necessario
+            String response = in.readLine();
+            System.out.println("Risposta dal server: " + response);
 
-    } catch (Exception e) {
-        e.printStackTrace();
-    }
-}
-
-private void setButton() {
-    Callback<TableColumn<RentalMovie, Void>, TableCell<RentalMovie, Void>> cellFactory = new Callback<>() {
-        @Override
-        public TableCell<RentalMovie, Void> call(final TableColumn<RentalMovie, Void> param) {
-            return new TableCell<>() {
-
-                private final Button btn = new Button("Restituisci");
-
-                {
-                    btn.setOnAction(event -> {
-                        RentalMovie selectedMovie = getTableView().getItems().get(getIndex());
-                        // Invia messaggio al server per restituire il film
-                        returnMovieToServer(selectedMovie);
-                        // Rimuovi il film dalla tabella dopo la restituzione
-                        rentalMovies.remove(selectedMovie);
-                        rentalTableView.setItems(rentalMovies);
-                    });
-                }
-
-                @Override
-                protected void updateItem(Void item, boolean empty) {
-                    super.updateItem(item, empty);
-                    if (empty) {
-                        setGraphic(null);
-                    } else {
-                        setGraphic(btn);
-                    }
-                }
-            };
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-    };
+    }
 
-    actionColumn.setCellFactory(cellFactory);
-    rentalTableView.setItems(rentalMovies); // Associa i dati alla tabella
-}
+    private void setButton() {
+        Callback<TableColumn<RentalMovie, Void>, TableCell<RentalMovie, Void>> cellFactory = new Callback<>() {
+            @Override
+            public TableCell<RentalMovie, Void> call(final TableColumn<RentalMovie, Void> param) {
+                return new TableCell<>() {
 
-void loadRentItems() {
+                    private final Button btn = new Button("Restituisci");
+
+                    {
+                        btn.setOnAction(event -> {
+                            RentalMovie selectedMovie = getTableView().getItems().get(getIndex());
+                            // Invia messaggio al server per restituire il film
+                            returnMovieToServer(selectedMovie);
+                            // Rimuovi il film dalla tabella dopo la restituzione
+                            rentalMovies.remove(selectedMovie);
+                            rentalTableView.setItems(rentalMovies);
+                        });
+                    }
+
+                    @Override
+                    protected void updateItem(Void item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty) {
+                            setGraphic(null);
+                        } else {
+                            setGraphic(btn);
+                        }
+                    }
+                };
+            }
+        };
+
+        actionColumn.setCellFactory(cellFactory);
+        rentalTableView.setItems(rentalMovies); // Associa i dati alla tabella
+    }
+
+    void loadRentItems() {
         if (Session.username == null) {
             System.out.println("Username is null");
             return;
         }
 
-         try {
-        Socket socket = new Socket("localhost", 8080);
-        PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        try {
+            Socket socket = new Socket("localhost", 8080);
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-        // Invia la scelta 7 e l'username
-        out.println("7");
-        out.println(Session.username);
+            // Invia la scelta 7 e l'username
+            out.println("7");
+            out.println(Session.username);
 
-        rentalMovies.clear();
+            rentalMovies.clear();
 
-        String line;
-        while ((line = in.readLine()) != null) {
-            if (line.equals("END_OF_CART")) {
-                break;
+            String line;
+            while ((line = in.readLine()) != null) {
+                if (line.equals("END_OF_CART")) {
+                    break;
+                }
+
+                System.out.println("Riga ricevuta: " + line);
+                // Parsing: id|title|genre|duration|availableCopies|rentalDate|expirationDate
+                String[] parts = line.split("\\|");
+                if (parts.length == 6) {
+                    int id = Integer.parseInt(parts[0]);
+                    String title = parts[1];
+                    String genre = parts[2];
+                    int duration = Integer.parseInt(parts[3]);
+                    String rentalDate = parts[4];
+                    String expirationDate = parts[5];
+
+                    System.out.println(rentalDate);
+                    System.out.println(expirationDate);
+
+                    // Costruisci il Movie con solo i dati necessari
+                    RentalMovie newRentalMovie = new RentalMovie(id, title, genre, duration, rentalDate,
+                            expirationDate);
+                    rentalMovies.add(newRentalMovie);
+                } else {
+                    System.out.println("Riga malformata: " + line);
+                }
             }
 
-            // Parsing: id|title|genre|duration|availableCopies|rentalDate|expirationDate
-            String[] parts = line.split("\\|");
-            if (parts.length == 7) {
-                int id = Integer.parseInt(parts[0]);
-                String title = parts[1];
-                //String genre = parts[2];
-                //int duration = Integer.parseInt(parts[3]);
-                int availableCopies = Integer.parseInt(parts[4]);
-                String rentalDate = parts[5];
-                String expirationDate = parts[6];
-                
-                System.out.println(rentalDate);
-                System.out.println(expirationDate);
-
-                // Costruisci il Movie con solo i dati necessari
-                RentalMovie newmovie = new RentalMovie();
-                newmovie.getMovie().setTitle(title);
-                newmovie.getMovie().setId(id);
-                newmovie.getMovie().setCopies(availableCopies);
-                newmovie.setRentalDate(rentalDate);
-                newmovie.setExpirationDate(expirationDate);
-                rentalMovies.add(newmovie);
-            } else {
-                System.out.println("Riga malformata: " + line);
-            }
+            rentalTableView.setItems(rentalMovies);
+            socket.close();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-        rentalTableView.setItems(rentalMovies);
-        socket.close();
-    } catch (Exception e) {
-        e.printStackTrace();
     }
-    }
-
-
-
 
 }

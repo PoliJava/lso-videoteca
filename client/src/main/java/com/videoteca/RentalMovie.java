@@ -1,40 +1,40 @@
 package com.videoteca;
 
-
-
 public class RentalMovie {
-    private Movie movie;
+    private int id;
+    private String title;
+    private String genre;
+    private int duration;
     private String rentalDate;
     private String expirationDate;
 
-    public RentalMovie(Movie movie, String rentalDate, String expirationDate) {
-        this.movie = movie;
+    RentalMovie(int id, String title, String genre, int duration, String rentalDate, String expirationDate) {
+        this.id = id;
+        this.title = title;
+        this.genre = genre;
+        this.duration = duration;
         this.rentalDate = rentalDate;
         this.expirationDate = expirationDate;
     }
 
-    public RentalMovie() {
-        //cosa ci mettiamo qui?
-    }
-
-    public Movie getMovie() {
-        return movie;
-    }
+    // public RentalMovie() {
+    // // cosa ci mettiamo qui?
+    // }
 
     public String getTitle() {
-        return movie.getTitle();
+        return title;
     }
 
     public String getGenre() {
-        return movie.getGenre();
+        return genre;
     }
 
     public int getDuration() {
-        return movie.getDuration();
+        return duration;
     }
 
     public int getId() {
-        return movie.getId();
+        return id;
     }
 
     public String getRentalDate() {
@@ -45,14 +45,12 @@ public class RentalMovie {
         return expirationDate;
     }
 
-    public void setRentalDate(String x){
+    public void setRentalDate(String x) {
         this.rentalDate = x;
     }
 
-    public void setExpirationDate(String x){
+    public void setExpirationDate(String x) {
         this.expirationDate = x;
     }
-
-
 
 }
