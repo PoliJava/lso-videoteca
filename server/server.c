@@ -96,6 +96,43 @@ int authenticateUser(sqlite3 *db, const char *username, const char *password)
     return result;
 }
 
+int authenticateAdmin(sqlite3 *db, const char *username, const char *password)
+{
+    const char *sql = "SELECT 1 FROM admins WHERE username = ? AND password = ?";
+    sqlite3_stmt *stmt;
+    int result = 0;
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
+    {
+        printf("stmt: %s\n", sqlite3_sql(stmt));
+        sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+        printf("username: %s\n", username);
+        sqlite3_bind_text(stmt, 2, password, -1, SQLITE_STATIC);
+        printf("password: %s\n", password);
+
+        printf("stmt: %s\n", sqlite3_sql(stmt));
+        // print SQLITE_ROW
+        int stepResult = sqlite3_step(stmt);
+
+        if (stepResult == SQLITE_ROW)
+        {
+            printf("DEBUG - Login OK\n");
+            result = 1;
+        }
+        else
+        {
+            printf("DEBUG - Login FALLITO, stepResult = %d\n", stepResult);
+            result = 0;
+        }
+    }
+    else
+    {
+        fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
+    }
+    sqlite3_finalize(stmt);
+    return result;
+}
+
 void trimNewline(char *str)
 {
     size_t len = strlen(str);
@@ -160,6 +197,7 @@ void setupDatabase()
                          "BEGIN "
                          "UPDATE movies SET availableCopies = availableCopies + 1 WHERE id = OLD.movieId; "
                          "END;";
+    const char *sqlAdmin = "CREATE TABLE IF NOT EXISTS admins ( id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL)";
     // const char *sqlUpd = "UPDATE movies SET availableCopies = CASE WHEN availableCopies > 0 THEN availableCopies - 1 ELSE 0 END WHERE id = NEW.movieId;";
     char *errMsg = 0;
 
@@ -168,9 +206,8 @@ void setupDatabase()
         sqlite3_exec(db, sqlRentals, 0, 0, &errMsg) != SQLITE_OK ||
         sqlite3_exec(db, sqlCart, 0, 0, &errMsg) != SQLITE_OK ||
         sqlite3_exec(db, sqlDec, 0, 0, &errMsg) != SQLITE_OK ||
-        sqlite3_exec(db, sqlInc, 0, 0, &errMsg) != SQLITE_OK /*||
-        sqlite3_exec(db, sqlUpd, 0, 0, &errMsg) != SQLITE_OK*/
-    )
+        sqlite3_exec(db, sqlInc, 0, 0, &errMsg) != SQLITE_OK ||
+        sqlite3_exec(db, sqlAdmin, 0, 0, &errMsg) != SQLITE_OK)
     {
         fprintf(stderr, "SQL Error: %s\n", errMsg);
         sqlite3_free(errMsg);
@@ -293,10 +330,9 @@ void returnMovie(sqlite3 *db, int movieId, const char *username)
         printf("-1");
         return -1;
     }
-        
+
     sqlite3_finalize(stmt);
 }
-
 
 // funzioni per carrello
 void getCart(sqlite3 *db, const char *username)
@@ -424,18 +460,10 @@ void *gestione_client(void *arg)
 
     char buffer[1024];
     bzero(buffer, sizeof(buffer));
-
-    // char *msg = "Benvenuto alla videoteca! \n1) Registrati\n2) Login\nScelta: \n";
-    // write(client_fd, msg, strlen(msg));
-
     // ricezione del messaggio dal client
     read_line(client_fd, buffer, sizeof(buffer));
     // read(client_fd, buffer, sizeof(buffer));
     printf("Messaggio ricevuto dal client: %s\n", buffer);
-
-    // bzero(buffer, sizeof(buffer));
-    // printf("buffer: %s\n", buffer);
-    // read(client_fd, buffer, sizeof(buffer));
 
     int scelta = atoi(buffer);
     printf("Scelta: %d\n", scelta);
@@ -448,14 +476,7 @@ void *gestione_client(void *arg)
         char username[50], password[50]; // Assolutamente non sicuro. C'è un'alternativa migliore?
         memset(username, 0, sizeof(username));
         memset(password, 0, sizeof(password));
-        // write(client_fd, "Inserisci username: \n", strlen("Inserisci username: \n"));
-        // read(client_fd, username, sizeof(username));
-        // trimNewline(username);
         read_line(client_fd, username, sizeof(username));
-        // printf("Username: %s\n", username);
-        // write(client_fd, "Inserisci password: \n", strlen("Inserisci password: \n"));
-        // read(client_fd, password, sizeof(password));
-        // trimNewline(password);
         read_line(client_fd, password, sizeof(password));
         registerUser(db, username, password);
     }
@@ -465,15 +486,8 @@ void *gestione_client(void *arg)
         char username[50], password[50];
         memset(username, 0, sizeof(username));
         memset(password, 0, sizeof(password));
-        // write(client_fd, "Inserisci username: \n", strlen("Inserisci username: \n"));
-        // read(client_fd, username, sizeof(username));
-        // trimNewline(username);
         read_line(client_fd, username, sizeof(username));
-        // printf("Username: %s\n", username);
-        // write(client_fd, "Inserisci password: \n", strlen("Inserisci password: \n"));
-        // read(client_fd, password, sizeof(password));
         read_line(client_fd, password, sizeof(password));
-        // trimNewline(password);
 
         if (authenticateUser(db, username, password) == 1)
         {
@@ -484,7 +498,7 @@ void *gestione_client(void *arg)
             write(client_fd, "Login fallito.\n", strlen("Login fallito.\n"));
         }
     }
-    else if (scelta == 3)
+    else if (scelta == 3) //aggiunta al carrello
     {
         char username[100];
         char id_film_str[10];
@@ -524,7 +538,7 @@ void *gestione_client(void *arg)
         }
     }
 
-    else if (scelta == 4)
+    else if (scelta == 4) //cancellazione carrello
     {
         char username[100];
         char id_film_str[10];
@@ -565,7 +579,7 @@ void *gestione_client(void *arg)
         }
     }
 
-    else if (scelta == 5)
+    else if (scelta == 5) //visualizzazione carrello
     {
         char username[100];
         memset(username, 0, sizeof(username));
@@ -611,7 +625,7 @@ void *gestione_client(void *arg)
         // Fine dati
         write(client_fd, "END_OF_CART\n", strlen("END_OF_CART\n"));
     }
-    else if (scelta == 6)
+    else if (scelta == 6) //aggiunta ai noleggi
     { // bisogna modulizzare in una funzione, è un casino da leggere
 
         char username[100];
@@ -638,6 +652,8 @@ void *gestione_client(void *arg)
             return;
         }
 
+        printf("DEBUG → Username ricevuto: '%s'\n", username);
+
         // Leggi l'ID del film
         if (read_line(client_fd, buffer, sizeof(buffer)) <= 0)
         {
@@ -659,6 +675,8 @@ void *gestione_client(void *arg)
             int id = atoi(movie_id);
 
             sqlite3_stmt *stmt;
+            printf("DEBUG → Inserisco noleggio: user='%s', movieId=%d, date=%s, return=%s\n", username, id, date, exp_date);
+
             const char *sql = "INSERT INTO rentals (username, movieId, rentaldate, returndate) VALUES (?, ?, ?, ?)";
 
             if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
@@ -700,7 +718,7 @@ void *gestione_client(void *arg)
         }
     }
 
-    else if (scelta == 7)
+    else if (scelta == 7) //visualizzazione noleggi
     {
         char username[100];
 
@@ -752,53 +770,129 @@ void *gestione_client(void *arg)
         write(client_fd, "END_OF_CART\n", strlen("END_OF_CART\n"));
     }
 
-    else if (scelta == 8)
-    {
-        // gestione della restituzione
-
-        /*cosa ci serve che faccia?
-        il client deve mandare al server l'username e l'id del film in prestito
-        il server deve cancellare da rentals il suddetto id
-        aggiornamento copie disponibili: farlo tramite vincoli? sì ti prego.*/
-
-        char username[100];
-        int rent_id;
-
-        memset(username, 0, sizeof(username));
-
-        if (read_line(client_fd, username, sizeof(username)) <= 0)
-        {
-            printf("Errore durante la lettura dell'username.\n");
-            return;
-        }
-
-        if (read_line(client_fd, rent_id, sizeof(rent_id)) <= 0)
-        {
-            printf("Errore durante la lettura dei numeri di righe.\n");
-            return;
-        }
-
-        /*sqlite3_stmt *stmt;
-        const char *sql = "DELETE FROM rentals WHERE username = ? AND movieId = ?";
-
-        if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
-        {
-            fprintf(stderr, "Errore nella preparazione della query: %s\n", sqlite3_errmsg(db));
-            write(client_fd, "ERROR\n", 6);
-            return;
-        }
-
-        sqlite3_bind_text(stmt, 1, username, -1, SQLITE_TRANSIENT);
-        sqlite3_bind_int(stmt, 2, rent_id);
-
-        if (sqlite3_step(stmt) != SQLITE_DONE)
-        {
-            fprintf(stderr, "Execution failed: %s\n", sqlite3_errmsg(db));
-        }
-
-        sqlite3_finalize(stmt);*/
-        returnMovie(db,  rent_id, username);
+    else if (scelta == 8) {
+    char username[100];
+    char movieIdStr[20];
+    int movieId;
+    
+    // Read username
+    if (read_line(client_fd, username, sizeof(username)) <= 0) {
+        write(client_fd, "ERROR: Missing username\n", 23);
+        return;
     }
+    
+    // Read movie ID
+    if (read_line(client_fd, movieIdStr, sizeof(movieIdStr)) <= 0) {
+        write(client_fd, "ERROR: Missing movie ID\n", 24);
+        return;
+    }
+    
+    movieId = atoi(movieIdStr);
+    
+    // Start transaction
+    sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
+    
+    // Delete from rentals
+    const char *deleteSql = "DELETE FROM rentals WHERE username = ? AND movieId = ?";
+    sqlite3_stmt *deleteStmt;
+    
+    if (sqlite3_prepare_v2(db, deleteSql, -1, &deleteStmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(deleteStmt, 1, username, -1, SQLITE_STATIC);
+        sqlite3_bind_int(deleteStmt, 2, movieId);
+        
+        if (sqlite3_step(deleteStmt) != SQLITE_DONE) {
+            fprintf(stderr, "Delete failed: %s\n", sqlite3_errmsg(db));
+            write(client_fd, "ERROR: Delete failed\n", 20);
+            sqlite3_exec(db, "ROLLBACK", 0, 0, 0);
+        } else {
+            // Update available copies
+            const char *updateSql = "UPDATE movies SET availableCopies = availableCopies + 1 WHERE id = ?";
+            sqlite3_stmt *updateStmt;
+            
+            if (sqlite3_prepare_v2(db, updateSql, -1, &updateStmt, 0) == SQLITE_OK) {
+                sqlite3_bind_int(updateStmt, 1, movieId);
+                
+                if (sqlite3_step(updateStmt) == SQLITE_DONE) {
+                    sqlite3_exec(db, "COMMIT", 0, 0, 0);
+                    write(client_fd, "SUCCESS\n", 8);
+                } else {
+                    fprintf(stderr, "Update failed: %s\n", sqlite3_errmsg(db));
+                    write(client_fd, "ERROR: Update failed\n", 21);
+                    sqlite3_exec(db, "ROLLBACK", 0, 0, 0);
+                }
+                sqlite3_finalize(updateStmt);
+            }
+        }
+        sqlite3_finalize(deleteStmt);
+    } else {
+        fprintf(stderr, "Prepare failed: %s\n", sqlite3_errmsg(db));
+        write(client_fd, "ERROR: Prepare failed\n", 22);
+        sqlite3_exec(db, "ROLLBACK", 0, 0, 0);
+    }
+}
+    else if (scelta == 9) //login admin
+    {
+        printf("Handling movies request\n");
+        char username[50], password[50];
+        memset(username, 0, sizeof(username));
+        memset(password, 0, sizeof(password));
+        read_line(client_fd, username, sizeof(username));
+        read_line(client_fd, password, sizeof(password));
+
+        if (authenticateAdmin(db, username, password) == 1)
+        {
+            write(client_fd, "Login riuscito!\n", strlen("Login riuscito!\n"));
+        }
+        else
+        {
+            write(client_fd, "Login fallito.\n", strlen("Login fallito.\n"));
+        }
+    }
+    else if (scelta == 10) {  // film 
+    sqlite3_stmt *stmt;
+    const char *sql = "SELECT id, title, genre, duration, availableCopies, totalCopies FROM movies";
+    
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK) {
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            char row[512];
+            snprintf(row, sizeof(row), "%d|%s|%s|%d|%d|%d\n",
+                sqlite3_column_int(stmt, 0),
+                sqlite3_column_text(stmt, 1),
+                sqlite3_column_text(stmt, 2),
+                sqlite3_column_int(stmt, 3),
+                sqlite3_column_int(stmt, 4),
+                sqlite3_column_int(stmt, 5));
+            write(client_fd, row, strlen(row));
+
+        }
+
+        write(client_fd, "END_OF_DATA\n", 12);
+    }
+    sqlite3_finalize(stmt);
+}
+   else if (scelta == 11) {
+    sqlite3_stmt *stmt;
+    const char *sql = "SELECT movieId, username, rentaldate, returndate FROM rentals";
+    
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK) {
+        // First send count
+        int count = 0;
+        while (sqlite3_step(stmt) == SQLITE_ROW) count++;
+        dprintf(client_fd, "COUNT:%d\n", count);
+        sqlite3_reset(stmt);
+        
+        // Send each column separately
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            dprintf(client_fd, "MOVIEID:%d\n", sqlite3_column_int(stmt, 0));
+            dprintf(client_fd, "USERNAME:%s\n", sqlite3_column_text(stmt, 1));
+            dprintf(client_fd, "RENTALDATE:%s\n", sqlite3_column_text(stmt, 2));
+            dprintf(client_fd, "RETURNDATE:%s\n", sqlite3_column_text(stmt, 3));
+            dprintf(client_fd, "----\n");  // Record separator
+        }
+        write(client_fd, "END\n", 4);
+    }
+    sqlite3_finalize(stmt);
+}
 
     sleep(1);
     close(client_fd);

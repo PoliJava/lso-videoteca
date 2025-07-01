@@ -3,6 +3,7 @@ package com.videoteca;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -44,28 +45,36 @@ public class ViewRentalsController {
     }
 
     private void returnMovieToServer(RentalMovie selectedMovie) {
-        try (Socket socket = new Socket("localhost", 8080);
-                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+    try (Socket socket = new Socket("localhost", 8080);
+         PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+         BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
-            // Invia comando al server
-            out.println("8");
-            System.out.println("8");
-            out.println(Session.username);
-            System.out.println(Session.username);
-            out.println(selectedMovie.getId()); // supponendo che Movie abbia un ID
-            System.out.println(selectedMovie.getId());
-            // Puoi anche inviare il titolo o altri dati se necessario
-            String response = in.readLine();
-            System.out.println("Risposta dal server: " + response);
-
-        } catch (Exception e) {
-            e.printStackTrace();
+        // Send command
+        out.println("8");
+        out.println(Session.username);
+        out.println(selectedMovie.getId());
+        
+        // Wait for response
+        String response = in.readLine();
+        System.out.println("Server response: " + response);
+        
+        if (!"SUCCESS".equals(response)) {
+            System.err.println("Failed to return movie: " + response);
         }
-        int idx = rentalMovies.indexOf(selectedMovie);
-        rentalMovies.remove(idx);
-        loadRentItems();
+        
+    } catch (Exception e) {
+        e.printStackTrace();
+        // Show error to user
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Error");
+        alert.setHeaderText("Return Failed");
+        alert.setContentText("Could not return movie: " + e.getMessage());
+        alert.showAndWait();
     }
+    
+    // Refresh the table
+    loadRentItems();
+}
 
     private void setButton() {
         Callback<TableColumn<RentalMovie, Void>, TableCell<RentalMovie, Void>> cellFactory = new Callback<>() {

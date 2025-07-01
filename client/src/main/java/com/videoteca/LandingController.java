@@ -16,4 +16,9 @@ public class LandingController {
     private void switchToLogin() throws IOException {
         App.setRoot("login");
     }
+
+    @FXML
+    private void switchToAdminLogin() throws IOException {
+        App.setRoot("adminLogin");
+    }
 }

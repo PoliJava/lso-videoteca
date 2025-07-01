@@ -1,8 +1,10 @@
 package com.videoteca;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
@@ -215,16 +217,26 @@ public class ViewCartController {
     System.out.println("Checkout cliccato!");
 
         Socket socket = new Socket("localhost", 8080);
-        PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+        BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
         BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-        out.println("6"); //manda al server l'ordine di inserire il rental
-        out.println(this.username);
-        out.println(rows);
-        for (Integer id : toRent){
-            out.println(id); //stampa gli id di tutti i film da inserire
-            System.out.println(id);
-        }
+        out.write("6");
+        out.newLine();
+        out.flush();
+
+        out.write(Session.username);
+        out.newLine();
+        out.flush();
+
+        out.write(String.valueOf(rows));
+        out.newLine();
+        out.flush();
+
+for (Integer id : toRent) {
+    out.write(String.valueOf(id));
+    out.newLine();
+    out.flush();
+}
 
         String response = in.readLine();
         System.out.println(response);

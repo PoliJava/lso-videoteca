@@ -10,6 +10,7 @@
         <Label text="Benvenuto alla videoteca" />
         <Button fx:id="registerButton" text="Registrati" onAction="#switchToRegister"/>
         <Button fx:id="loginButton" text="Accedi" onAction="#switchToLogin"/>
+        <Button fx:id="adminLoginButton" text="Login Commerciante" onAction="#switchToAdminLogin"/>
     </children>
     <padding>
         <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />

@@ -6,8 +6,8 @@ public class Movie {
     private String genre;
     private int duration;
     private int copies;
+    private int totalCopies;
 
-    
     Movie(int id, String title, String genre, int duration, int copies) {
         this.id = id;
         this.title = title;
@@ -16,7 +16,24 @@ public class Movie {
         this.copies = copies;
     }
 
-    public Movie() {  
+     Movie(int id, String title, String genre, int duration, int copies, int totalCopies) {
+        this.id = id;
+        this.title = title;
+        this.genre = genre;
+        this.duration = duration;
+        this.copies = copies;
+        this.totalCopies = totalCopies;
+    }
+
+
+    Movie(int id, String title, int copies, int totalCopies) {
+        this.id = id;
+        this.title = title;
+        this.copies = copies;
+        this.totalCopies = totalCopies;
+    }
+
+    public Movie() {
         this.id = 0;
         this.title = "";
         this.genre = "";
@@ -44,21 +61,28 @@ public class Movie {
         return copies;
     }
 
-    public void setTitle(String newTitle){
+    public void setTitle(String newTitle) {
         this.title = newTitle;
     }
 
-    public void setDuration(int len){
+    public void setDuration(int len) {
         this.duration = len;
     }
 
-    public void setCopies(int availableCopies){
+    public void setCopies(int availableCopies) {
         this.copies = availableCopies;
     }
 
-    public void setId(int movieId){
-        this.id = movieId; 
+    public void setId(int movieId) {
+        this.id = movieId;
     }
-    
+
+    public int getTotalCopies() {
+        return totalCopies;
+    }
+
+    public int getRentedCopies() {
+        return totalCopies - copies;
+    }
 
 }
