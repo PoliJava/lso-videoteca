@@ -8,8 +8,6 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.image.Image?>
 
-
-
 <BorderPane xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" fx:controller="com.videoteca.AdminDashboardController">
     <left>
         <VBox spacing="20" alignment="TOP_CENTER" style="-fx-padding: 20;">
@@ -18,11 +16,12 @@
             <Button text="Visualizza film" onAction="#handleViewMoviesAdmin"/>
             <Button text="Visualizza prestiti" onAction="#handleViewRentedMoviesAdmin"/>
             <Button text="Visualizza avvisi" onAction="#handleViewNotifications"/>
+            <Button text="Aggiungi film" onAction="#handleAddMovie" style="-fx-background-color: #4CAF50; -fx-text-fill: white;"/>
         </VBox>
     </left>
     <center>
-            <StackPane fx:id="contentPane" style="-fx-padding: 20;">
-                <!-- Content will be loaded here dynamically -->
-            </StackPane>
-        </center>
+        <StackPane fx:id="contentPane" style="-fx-padding: 20;">
+            <!-- Content will be loaded here dynamically -->
+        </StackPane>
+    </center>
 </BorderPane>

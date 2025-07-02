@@ -2,12 +2,15 @@ package com.videoteca;
 
 public class Rental{
     private int movieId;
+    private String title;
     private String username;
     private String rentalDate;
     private String expirationDate;
+    
 
-    Rental(int id, String name, String date, String expiration){
+    Rental(int id, String title, String name, String date, String expiration){
         this.movieId = id;
+        this.title = title;
         this.username = name;
         this.rentalDate = date;
         this.expirationDate = expiration;
@@ -25,6 +28,14 @@ public class Rental{
 
     public void setMovieId(int id){
         this.movieId = id;
+    }
+
+    public String getTitle(){
+        return this.title;
+    }
+
+    public void setTitle(String title){
+        this.title = title;
     }
 
     public String getUsername(){

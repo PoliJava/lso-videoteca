@@ -142,30 +142,29 @@ void trimNewline(char *str)
 
 int read_line(int fd, char *buffer, size_t max_len)
 {
-    size_t i = 0;
-    char c;
-    while (i < max_len - 1)
-    {
-        int n = read(fd, &c, 1);
-        if (n > 0)
-        {
-            if (c == '\n')
-                break;
-            buffer[i++] = c;
-        }
-        else if (n == 0)
-        {
-            // EOF
-            break;
-        }
-        else
-        {
-            // Error
-            return -1;
-        }
-    }
-    buffer[i] = '\0';
-    return i;
+         size_t i = 0;
+     char c;
+     while (i < max_len - 1) {
+         int n = read(fd, &c, 1);
+         if (n > 0) {
+             if (c == '\n') {
+                 break;
+             }
+             buffer[i++] = c;
+         } else if (n == 0) {
+             // EOF
+             break;
+         } else {
+             // Error
+             return -1;
+         }
+     }
+     // Remove trailing carriage return if present
+     if (i > 0 && buffer[i-1] == '\r') {
+         i--;
+     }
+     buffer[i] = '\0';
+     return i;
 }
 
 // funzioni per database
@@ -872,7 +871,7 @@ void *gestione_client(void *arg)
 }
    else if (scelta == 11) {
     sqlite3_stmt *stmt;
-    const char *sql = "SELECT movieId, username, rentaldate, returndate FROM rentals";
+    const char *sql = "SELECT r.movieId, m.title, r.username, r.rentaldate, r.returndate FROM rentals r JOIN movies m ON r.movieId = m.id";
     
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK) {
         // First send count
@@ -884,14 +883,83 @@ void *gestione_client(void *arg)
         // Send each column separately
         while (sqlite3_step(stmt) == SQLITE_ROW) {
             dprintf(client_fd, "MOVIEID:%d\n", sqlite3_column_int(stmt, 0));
-            dprintf(client_fd, "USERNAME:%s\n", sqlite3_column_text(stmt, 1));
-            dprintf(client_fd, "RENTALDATE:%s\n", sqlite3_column_text(stmt, 2));
-            dprintf(client_fd, "RETURNDATE:%s\n", sqlite3_column_text(stmt, 3));
+            dprintf(client_fd, "TITLE:%s\n", sqlite3_column_text(stmt, 1)); // Send the movie title
+            printf("DEBUG - Sending title: %s\n", sqlite3_column_text(stmt, 1));
+            dprintf(client_fd, "USERNAME:%s\n", sqlite3_column_text(stmt, 2));
+            dprintf(client_fd, "RENTALDATE:%s\n", sqlite3_column_text(stmt, 3));
+            dprintf(client_fd, "RETURNDATE:%s\n", sqlite3_column_text(stmt, 4));
             dprintf(client_fd, "----\n");  // Record separator
         }
         write(client_fd, "END\n", 4);
     }
     sqlite3_finalize(stmt);
+}
+
+else if (scelta == 12) {  // Add new movie (admin)
+    char title[100], genre[50];
+    char durationStr[10], totalCopiesStr[10];
+    int duration, totalCopies;
+    
+    printf("DEBUG: Received request to add new movie\n");
+    
+    // Read movie data from client
+    if (read_line(client_fd, title, sizeof(title)) <= 0) {
+        printf("ERROR: Failed to read title\n");
+        write(client_fd, "ERROR: Failed to read title\n", 28);
+        return;
+    }
+    if (read_line(client_fd, genre, sizeof(genre)) <= 0) {
+        printf("ERROR: Failed to read genre\n");
+        write(client_fd, "ERROR: Failed to read genre\n", 28);
+        return;
+    }
+    if (read_line(client_fd, durationStr, sizeof(durationStr)) <= 0) {
+        printf("ERROR: Failed to read duration\n");
+        write(client_fd, "ERROR: Failed to read duration\n", 30);
+        return;
+    }
+    if (read_line(client_fd, totalCopiesStr, sizeof(totalCopiesStr)) <= 0) {
+        printf("ERROR: Failed to read total copies\n");
+        write(client_fd, "ERROR: Failed to read total copies\n", 34);
+        return;
+    }
+    
+    printf("DEBUG: Received data - Title: %s, Genre: %s, Duration: %s, Copies: %s\n", 
+           title, genre, durationStr, totalCopiesStr);
+    
+    duration = atoi(durationStr);
+    totalCopies = atoi(totalCopiesStr);
+    
+    // Prepare SQL statement
+    const char *sql = "INSERT INTO movies (title, genre, duration, totalCopies, availableCopies) VALUES (?, ?, ?, ?, ?)";
+    sqlite3_stmt *stmt;
+    
+    printf("DEBUG: Preparing SQL statement\n");
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK) {
+        printf("DEBUG: Binding parameters\n");
+        sqlite3_bind_text(stmt, 1, title, -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, genre, -1, SQLITE_STATIC);
+        sqlite3_bind_int(stmt, 3, duration);
+        sqlite3_bind_int(stmt, 4, totalCopies);
+        sqlite3_bind_int(stmt, 5, totalCopies);
+        
+        printf("DEBUG: Executing statement\n");
+         int rc = sqlite3_step(stmt);
+        if (rc == SQLITE_DONE) {
+            printf("DEBUG: Movie added, committing transaction\n");
+            sqlite3_exec(db, "COMMIT", 0, 0, 0); // Commit transaction
+            write(client_fd, "SUCCESS\n", 8);
+        } else {
+            printf("ERROR: Failed to execute statement: %s\n", sqlite3_errmsg(db));
+            sqlite3_exec(db, "ROLLBACK", 0, 0, 0); // Rollback on error
+            write(client_fd, "ERROR: Failed to add movie\n", 26);
+        }
+        sqlite3_finalize(stmt);
+    } else {
+        sqlite3_exec(db, "ROLLBACK", 0, 0, 0); // Rollback on error
+        printf("ERROR: Failed to prepare statement: %s\n", sqlite3_errmsg(db));
+        write(client_fd, "ERROR: Database error\n", 22);
+    }
 }
 
     sleep(1);
