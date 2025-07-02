@@ -18,12 +18,17 @@ public class UserDashboardController {
 
     @FXML
     private void handleViewRentedMovies() throws IOException {
-       loadPage("viewRentedMovies.fxml");
+        loadPage("viewRentedMovies.fxml");
     }
 
     @FXML
     private void handleViewCart() throws IOException {
         loadPage("viewCart.fxml");
+    }
+
+    @FXML
+    private void handleMailboxClick() throws IOException {
+        loadPage("viewMessages.fxml");
     }
 
     @FXML
@@ -36,7 +41,7 @@ public class UserDashboardController {
     private void loadPage(String page) throws IOException {
         FXMLLoader loader = new FXMLLoader(getClass().getResource(page));
         Node node = loader.load();
-    
+
         // Passaggio dell'username se si tratta della pagina del carrello
         if (page.equals("viewCart.fxml")) {
             ViewCartController controller = loader.getController();
@@ -44,11 +49,11 @@ public class UserDashboardController {
             controller.loadCartItems();
         }
 
-        if(page.equals("viewRentedMovies.fxml")){
+        if (page.equals("viewRentedMovies.fxml")) {
             ViewRentalsController rentcontr = loader.getController();
             rentcontr.loadRentItems();
         }
-    
+
         contentPane.getChildren().setAll(node);
     }
 }

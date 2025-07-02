@@ -15,7 +15,7 @@
             <Label fx:id="welcomeLabel" text="Benvenuto, Amministratore" style="-fx-font-size: 18px;"/>
             <Button text="Visualizza film" onAction="#handleViewMoviesAdmin"/>
             <Button text="Visualizza prestiti" onAction="#handleViewRentedMoviesAdmin"/>
-            <Button text="Visualizza avvisi" onAction="#handleViewNotifications"/>
+            <Button text="Visualizza avvisi" onAction="#handleMailboxClick"/>
             <Button text="Aggiungi film" onAction="#handleAddMovie" style="-fx-background-color: #4CAF50; -fx-text-fill: white;"/>
         </VBox>
     </left>

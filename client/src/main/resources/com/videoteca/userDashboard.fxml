@@ -17,6 +17,7 @@
             <Label fx:id="welcomeLabel" text="Benvenuto, Utente" style="-fx-font-size: 18px;"/>
             <Button text="Visualizza film" onAction="#handleViewMovies"/>
             <Button text="Visualizza film noleggiati" onAction="#handleViewRentedMovies"/>
+            <Button text="Visualizza avvisi" onAction="#handleMailboxClick"/>
             <Button text="Carrello" onAction="#handleViewCart"/>
         </VBox>
     </left>
