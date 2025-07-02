@@ -1,7 +1,21 @@
-/Users/simone/Documents/Universita/Github Reps/videoteca-first/src/main/java/com/videoteca/App.java
-/Users/simone/Documents/Universita/Github Reps/videoteca-first/src/main/java/module-info.java
-/Users/simone/Documents/Universita/Github Reps/videoteca-first/src/main/java/com/videoteca/SecondaryController.java
-/Users/simone/Documents/Universita/Github Reps/videoteca-first/src/main/java/com/videoteca/PrimaryController.java
-/Users/simone/Documents/Universita/Github Reps/videoteca-first/src/main/java/com/videoteca/LoginController.java
-/Users/simone/Documents/Universita/Github Reps/videoteca-first/src/main/java/com/videoteca/RegisterController.java
-/Users/simone/Documents/Universita/Github Reps/videoteca-first/src/main/java/com/videoteca/LandingController.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\AdminLoginController.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\AdminDashboardController.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\RegisterController.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\UserDashboardController.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\Rental.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\CartItem.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\ViewRentalsController.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\Cart.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\module-info.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\Session.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\ViewMoviesAdminController.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\RentalMovie.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\MessageDetailController.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\ViewCartController.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\ViewMoviesController.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\LoginController.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\Message.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\LandingController.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\Movie.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\App.java
+C:\Users\PlayXtreme\Desktop\Uni\PROGETTI\LSO\lso-videoteca\client\src\main\java\com\videoteca\ViewMessagesController.java

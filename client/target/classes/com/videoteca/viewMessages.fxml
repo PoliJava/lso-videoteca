@@ -12,7 +12,7 @@
             <TableColumn fx:id="adminColumn" text="Admin" prefWidth="150"/>
             <TableColumn fx:id="titleColumn" text="Film" prefWidth="150"/>
             <TableColumn fx:id="expireDateColumn" text="DataDiScadenza" prefWidth="150"/>
-            <TableColumn fx:id="objectColumn" text="Oggetto" prefWidth="150"/>
+             <TableColumn fx:id="detailsButtonColumn" text="Mess" />
         </columns>
     </TableView>
 </VBox>

@@ -1,5 +1,9 @@
 package com.videoteca;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+
 public class Rental{
     private int movieId;
     private String title;
@@ -61,6 +65,23 @@ public class Rental{
     public void setExpirationDate(String exp){
         this.expirationDate = exp;      
     }
+
+        
+    public boolean isExpired() {
+        if (this.expirationDate == null || this.expirationDate.isEmpty()) {
+            return false; // Cannot determine if expired without a return date
+        }
+        try {
+            LocalDate today = LocalDate.now();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            LocalDate dueDate = LocalDate.parse(this.expirationDate, formatter);
+            return today.isAfter(dueDate);
+        } catch (DateTimeParseException e) {
+            System.err.println("Error parsing date: " + this.expirationDate + ". " + e.getMessage());
+            return false; // Treat as not expired if date is unparseable
+        }
+    }
+
 
 
 }

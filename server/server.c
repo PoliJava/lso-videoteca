@@ -1001,7 +1001,101 @@ void *gestione_client(void *arg)
             write(client_fd, "ERROR: Database error\n", 22);
         }
     }
+  else if(scelta == 13){
+    printf("Aggiunta di msg al database.\n");
+    // 1. adminUsername
+    // 2. username (recipient)
+    // 3. movieTitle
+    // 4. movieId
+    // 5. messageContent
 
+    char admin_username[512];
+    char username[512]; // Recipient
+    char movie_title[512];
+    char movie_id_str[4];
+    char message_content[4096];
+
+    memset(admin_username, 0, sizeof(admin_username));
+    memset(username, 0, sizeof(username));
+    memset(movie_title, 0, sizeof(movie_title));
+    memset(movie_id_str, 0, sizeof(movie_id_str));
+    memset(message_content, 0, sizeof(message_content));
+
+    // Read adminUsername using read_line
+    if (read_line(client_fd, admin_username, sizeof(admin_username)) <= 0) {
+        perror("Failed to read admin_username for command 13");
+        return;
+    }
+    printf("DEBUG - Received admin_username: '%s'\n", admin_username);
+
+
+    // Read username (recipient) using read_line
+    if (read_line(client_fd, username, sizeof(username)) <= 0) {
+        perror("Failed to read username for command 13");
+        return;
+    }
+    printf("DEBUG - Received username: '%s'\n", username);
+
+
+    // Read movieTitle using read_line
+    if (read_line(client_fd, movie_title, sizeof(movie_title)) <= 0) {
+        perror("Failed to read movie_title for command 13");
+        return;
+    }
+    printf("DEBUG - Received movie_title: '%s'\n", movie_title);
+
+
+    // Read movieId using read_line
+    if (read_line(client_fd, movie_id_str, sizeof(movie_id_str)) <= 0) {
+        perror("Failed to read movie_id for command 13");
+        return;
+    }
+    int movie_id = atoi(movie_id_str);
+    printf("DEBUG - Received movie_id: '%d'\n", movie_id);
+
+
+    // Read messageContent using read_line
+    if (read_line(client_fd, message_content, sizeof(message_content)) <= 0) {
+        perror("Failed to read message_content for command 13");
+        return;
+    }
+    printf("DEBUG - Received message_content: '%s'\n", message_content);
+
+
+    // Prepare SQL statement to insert the message into the 'messages' table
+    sqlite3_stmt *stmt;
+    const char *sql = "INSERT INTO messages (username, sender, title, movieId, message, timestamp) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)";
+    // NOTE: Changed sendDate to timestamp and used CURRENT_TIMESTAMP directly in SQL for simplicity and consistency.
+    // If 'sendDate' is a specific column name and type, adjust accordingly.
+
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare statement for message insertion: %s\n", sqlite3_errmsg(db));
+        send(client_fd, "ERROR: Database preparation failed\n", strlen("ERROR: Database preparation failed\n"), 0); // Add newline for consistency
+        return;
+    }
+
+    // Bind parameters to the prepared statement
+    sqlite3_bind_text(stmt, 1, username, -1, SQLITE_TRANSIENT); // Recipient
+    sqlite3_bind_text(stmt, 2, admin_username, -1, SQLITE_TRANSIENT); // Sender (Admin)
+    sqlite3_bind_text(stmt, 3, movie_title, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_int(stmt, 4, movie_id);
+    sqlite3_bind_text(stmt, 5, message_content, -1, SQLITE_TRANSIENT);
+
+    rc = sqlite3_step(stmt); // Execute the statement
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "Failed to insert message: %s\n", sqlite3_errmsg(db));
+        send(client_fd, "ERROR: Failed to insert message\n", strlen("ERROR: Failed to insert message\n"), 0); // Add newline
+    } else {
+        printf("Message successfully inserted into database.\n");
+        send(client_fd, "SUCCESS\n", strlen("SUCCESS\n"), 0); // Add newline for consistency
+    }
+
+    sqlite3_finalize(stmt); // Clean up the statement
+}
+   
+    
+    
     sleep(1);
     close(client_fd);
     printf("Client fd chiuso\n");

@@ -4,25 +4,23 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.Label;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.util.Callback; // Import Callback
+import javafx.application.Platform; // Important for UI updates from non-JavaFX thread
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.time.LocalDate; // Import for date comparison
+import java.time.format.DateTimeFormatter; // Import for date formatting
+import java.time.format.DateTimeParseException; // Import for date parsing
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -42,16 +40,20 @@ public class AdminDashboardController {
     private Button viewMoviesButton;
 
     @FXML
-    private Button viewRentedMoviesButton;
+    private Button viewRentedMoviesButton; 
 
     @FXML
     private Button viewNotificationsButton;
 
-    // Initialize method is automatically called after FXML loading
+
+    private TableColumn<Rental, Void> remindButtonColumn;
+
+    
     @FXML
     private void initialize() {
         welcomeLabel.setText("Benvenuto, Amministratore");
         handleViewMoviesAdmin(); // Load movies by default
+        
     }
 
     @FXML
@@ -122,7 +124,10 @@ public class AdminDashboardController {
             TableColumn<Rental, String> expDateCol = new TableColumn<>("Expiration Date");
             expDateCol.setCellValueFactory(new PropertyValueFactory<>("expirationDate"));
 
-            tableView.getColumns().addAll(titleCol, usernameCol, rentalDateCol, expDateCol);
+            TableColumn remindCol = new TableColumn<>("Action"); // Text for the column header
+            setupRemindButtonColumn(remindCol); // Call helper to set up button column
+
+            tableView.getColumns().addAll(titleCol, usernameCol, rentalDateCol, expDateCol, remindCol);
 
             // Set data with ACTUAL rentals list
             tableView.setItems(FXCollections.observableArrayList(rentals));
@@ -134,6 +139,122 @@ public class AdminDashboardController {
         } catch (Exception e) {
             e.printStackTrace();
             showError("Error loading rentals");
+        }
+    }
+
+      private void setupRemindButtonColumn(TableColumn<Rental, Void> column) {
+        Callback<TableColumn<Rental, Void>, TableCell<Rental, Void>> cellFactory = new Callback<>() {
+            @Override
+            public TableCell<Rental, Void> call(final TableColumn<Rental, Void> param) {
+                final TableCell<Rental, Void> cell = new TableCell<>() {
+                    private final Button btn = new Button("Remind");
+
+                    {
+                        // Set button style
+                        btn.setStyle("-fx-background-color: #dc3545; -fx-text-fill: white;"); // Red button for overdue
+                        // Action when the button is clicked
+                        btn.setOnAction(event -> {
+                            Rental rentedMovie = getTableView().getItems().get(getIndex());
+                            showSendMessageDialog(rentedMovie); // Open message dialog
+                        });
+                    }
+
+                    @Override
+                    public void updateItem(Void item, boolean empty) {
+                        super.updateItem(item, empty);
+                        if (empty) {
+                            setGraphic(null); // No button if row is empty
+                        } else {
+                            Rental rentedMovie = getTableView().getItems().get(getIndex());
+                            // Show button only if the rental is expired
+                            if (rentedMovie != null && rentedMovie.isExpired()) {
+                                setGraphic(btn);
+                            } else {
+                                setGraphic(null); // Hide button if not expired
+                            }
+                        }
+                    }
+                };
+                return cell;
+            }
+        };
+
+        column.setCellFactory(cellFactory);
+        column.setPrefWidth(100); // Set a reasonable width for the button column
+        column.setResizable(false); // Make it not resizable
+    }
+
+     private void showSendMessageDialog(Rental rentedMovie) {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Send Reminder Message");
+        dialog.setHeaderText("Send a message to " + rentedMovie.getUsername() + " about '" + rentedMovie.getTitle() + "'");
+        dialog.setContentText("Message:");
+
+        Optional<String> result = dialog.showAndWait();
+        result.ifPresent(messageContent -> {
+            // Placeholder for admin username (replace with actual logged-in admin username)
+            String adminUsername = "AdminUser";
+            sendMessageToServer(adminUsername, rentedMovie.getUsername(), rentedMovie.getTitle(), rentedMovie.getMovieId(), messageContent);
+        });
+    }
+
+      private void sendMessageToServer(String adminUsername, String username, String movieTitle, int movieId, String messageContent) {
+        try (Socket socket = new Socket("localhost", 8080);
+             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+
+            // Step 1: Send the command number
+            out.println("13");
+            System.out.println("Client: Sent command: 13");
+
+            // Step 2: Send each argument in a new line
+            out.println(adminUsername);
+            System.out.println("Client: Sent adminUsername: " + adminUsername);
+
+            out.println(username);
+            System.out.println("Client: Sent username: " + username);
+
+            out.println(movieTitle);
+            System.out.println("Client: Sent movieTitle: " + movieTitle);
+
+            out.println(String.valueOf(movieId)); // Movie ID as string
+            System.out.println("Client: Sent movieId: " + movieId);
+
+            out.println(messageContent);
+            System.out.println("Client: Sent messageContent: " + messageContent);
+
+            // Step 3: Wait for the server's final response
+            String serverResponse = in.readLine();
+            System.out.println("Client: Server response to message: " + serverResponse);
+
+            if ("SUCCESS".equals(serverResponse)) {
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                    alert.setTitle("Message Sent");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Reminder message sent successfully to " + username + "!");
+                    alert.showAndWait();
+                });
+            } else {
+                Platform.runLater(() -> {
+                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                    alert.setTitle("Message Failed");
+                    alert.setHeaderText(null);
+                    alert.setContentText("Failed to send message: " + serverResponse);
+                    alert.showAndWait();
+                });
+            }
+
+        } catch (IOException e) {
+            System.err.println("Client: Error sending message to server: " + e.getMessage());
+            e.printStackTrace();
+            Platform.runLater(() -> {
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Connection Error");
+                alert.setHeaderText(null);
+                alert.setContentText("Could not connect to server to send message. Is the server running?");
+                alert.showAndWait();
+            });
         }
     }
 
