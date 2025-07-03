@@ -17,6 +17,10 @@ public class Message {
         this.content = content;
     }
 
+    public Message() {
+        //TODO Auto-generated constructor stub
+    }
+
     public String getAdmin() {
         return admin;
     }
@@ -39,5 +43,17 @@ public class Message {
 
     public String getContent() {
         return content;
+    }
+
+    public void setTitle(String substring) {
+        this.title = substring;
+    }
+
+    public void setUser(String substring) {
+       this.user = substring;
+    }
+
+    public void setContent(String substring) {
+        this.content = substring;
     }
 }

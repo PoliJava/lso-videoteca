@@ -39,7 +39,7 @@ public class ViewMoviesAdminController {
     }
 
     private void loadMoviesFromDatabase() throws SQLException {
-        String url = "jdbc:sqlite:videoteca.db";
+        String url = "jdbc:sqlite:" + System.getProperty("user.dir") + "/server/videoteca.db";
        
 
         String sql = "SELECT id, title, totalCopies, availableCopies FROM movies";

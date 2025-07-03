@@ -1093,8 +1093,46 @@ void *gestione_client(void *arg)
 
     sqlite3_finalize(stmt); // Clean up the statement
 }
-   
+else if(scelta == 14){
+    printf("Handling message retrieval for admin\n");
+    char adminname[100];
+    memset(adminname, 0, sizeof(adminname));
+
+    // Read admin username
+    if (read_line(client_fd, adminname, sizeof(adminname)) <= 0) {
+        perror("Failed to read admin username for command 14");
+        return;
+    }
+
+    // Prepare SQL statement
+    const char *sql = "SELECT title, username, message FROM messages WHERE sender = ?";
+    sqlite3_stmt *stmt;
     
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db));
+        write(client_fd, "ERROR: Database error\n", 22);
+        return;
+    }
+
+    // Bind admin username parameter
+    sqlite3_bind_text(stmt, 1, adminname, -1, SQLITE_STATIC);
+
+    // Execute query and send results
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char *title = (const char*)sqlite3_column_text(stmt, 0);
+        const char *username = (const char*)sqlite3_column_text(stmt, 1);
+        const char *message = (const char*)sqlite3_column_text(stmt, 2);
+
+        // Send data in client-expected format
+        dprintf(client_fd, "TITLE:%s\n", title);
+        dprintf(client_fd, "USER:%s\n", username);
+        dprintf(client_fd, "TEXT:%s\n", message);
+    }
+
+    // Send end marker
+    write(client_fd, "END\n", 4);
+    sqlite3_finalize(stmt);
+}
     
     sleep(1);
     close(client_fd);

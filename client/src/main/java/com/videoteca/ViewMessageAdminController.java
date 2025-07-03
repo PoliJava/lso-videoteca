@@ -15,18 +15,19 @@ import javafx.stage.Stage;
 import javafx.util.Callback; // Import Callback
 
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-public class ViewMessagesController {
+public class ViewMessageAdminController {
 
     @FXML
     private TableView<Message> messagesTable;
     @FXML
-    private TableColumn<Message, String> adminColumn;
+    private TableColumn<Message, String> userColumn;
     @FXML
     private TableColumn<Message, String> titleColumn;
     @FXML
@@ -40,7 +41,7 @@ public class ViewMessagesController {
     @FXML
     public void initialize() {
         // Initialize existing columns
-        adminColumn.setCellValueFactory(new PropertyValueFactory<>("admin"));
+        userColumn.setCellValueFactory(new PropertyValueFactory<>("user"));
         titleColumn.setCellValueFactory(new PropertyValueFactory<>("title"));
         expireDateColumn.setCellValueFactory(new PropertyValueFactory<>("expireDate"));
 
@@ -56,12 +57,13 @@ public class ViewMessagesController {
         // REMOVE THE OLD DOUBLE-CLICK LISTENER if you prefer only the button
         // If you want both double-click and button, keep this block.
         // messagesTable.setOnMouseClicked(event -> {
-        //     if (event.getClickCount() == 2) {
-        //         Message selectedMessage = messagesTable.getSelectionModel().getSelectedItem();
-        //         if (selectedMessage != null) {
-        //             showMessageDetail(selectedMessage);
-        //         }
-        //     }
+        // if (event.getClickCount() == 2) {
+        // Message selectedMessage =
+        // messagesTable.getSelectionModel().getSelectedItem();
+        // if (selectedMessage != null) {
+        // showMessageDetail(selectedMessage);
+        // }
+        // }
         // });
     }
 
@@ -103,30 +105,30 @@ public class ViewMessagesController {
         detailsButtonColumn.setResizable(false); // Make it not resizable
     }
 
-
-    private void loadMessagesFromDatabase() {
-    String url = "jdbc:sqlite:" + System.getProperty("user.dir") + "/server/videoteca.db"; //da rendere universale
-
-    String sql = "SELECT me.id, me.username, me.sender, mo.title, me.message, me.movieId, re.returndate " +
-                     "FROM messages me " +
-                     "JOIN movies mo ON me.movieid = mo.id " +
-                     "JOIN rentals re ON re.movieId = me.movieId AND re.username = me.username";
+    public void loadMessagesFromDatabase() {
+        // String url =
+        // "jdbc:sqlite:C:\\Users\\PlayXtreme\\Desktop\\Uni\\PROGETTI\\LSO\\lso-videoteca\\server\\videoteca.db";
+        // //da rendere universale
+        String url = "jdbc:sqlite:" + System.getProperty("user.dir") + "/server/videoteca.db";
+        String sql = "SELECT me.id, me.username, me.sender, mo.title, me.message, me.movieId, re.returndate " +
+                "FROM messages me " +
+                "JOIN movies mo ON me.movieid = mo.id " +
+                "JOIN rentals re ON re.movieId = me.movieId AND re.username = me.username";
 
         try (Connection conn = DriverManager.getConnection(url);
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             messageList.clear();
 
             while (rs.next()) {
                 messageList.add(new Message(
-                    rs.getString("sender"),
-                    rs.getString("username"),
-                    rs.getString("title"),
-                    rs.getString("returndate"),
-                    rs.getInt("movieId"),
-                    rs.getString("message")
-                ));
+                        rs.getString("sender"),
+                        rs.getString("username"),
+                        rs.getString("title"),
+                        rs.getString("returndate"),
+                        rs.getInt("movieId"),
+                        rs.getString("message")));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -134,7 +136,6 @@ public class ViewMessagesController {
             // Handle error (e.g., show alert to user)
         }
     }
-
 
     private void showMessageDetail(Message message) {
         try {

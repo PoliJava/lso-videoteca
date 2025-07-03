@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.time.LocalDate; // Import for date comparison
 import java.time.format.DateTimeFormatter; // Import for date formatting
 import java.time.format.DateTimeParseException; // Import for date parsing
@@ -44,7 +45,6 @@ public class AdminDashboardController {
 
     @FXML
     private Button viewNotificationsButton;
-
 
     private TableColumn<Rental, Void> remindButtonColumn;
 
@@ -101,9 +101,7 @@ public class AdminDashboardController {
         }
     }
 
-    @FXML
-    private void handleMailboxClick() {
-    }
+
 
     @FXML
     private void handleViewRentedMoviesAdmin() {
@@ -264,11 +262,32 @@ public class AdminDashboardController {
     }
 
     @FXML
-    private void handleViewNotifications() {
-        // Implement notifications view if needed
+    private void handleViewNotificationsAdmin() throws UnknownHostException, IOException {
+    try {
+        List<Message> messages = fetchMessagesFromServer(); // Actually fetch messages
+        TableView<Message> tableView = new TableView<>();
+        
+        TableColumn<Message, String> titleCol = new TableColumn<>("Movie Title");
+        titleCol.setCellValueFactory(new PropertyValueFactory<>("title"));
+        
+        TableColumn<Message, String> userCol = new TableColumn<>("Recipient");
+        userCol.setCellValueFactory(new PropertyValueFactory<>("user"));
+        
+        TableColumn<Message, String> contentCol = new TableColumn<>("Message");
+        contentCol.setCellValueFactory(new PropertyValueFactory<>("content"));
+        
+        tableView.getColumns().addAll(titleCol, userCol, contentCol);
+        tableView.setItems(FXCollections.observableArrayList(messages));
+        
         contentPane.getChildren().clear();
-        contentPane.getChildren().add(new Label("Notifications will be shown here"));
+        contentPane.getChildren().add(tableView);
+        
+    } catch (Exception e) {
+        e.printStackTrace();
+        showError("Error loading messages");
     }
+}
+    
 
     private List<Movie> fetchMoviesFromServer() throws Exception {
         List<Movie> movies = new ArrayList<>();
@@ -473,5 +492,36 @@ public class AdminDashboardController {
             e.printStackTrace();
         }
     }
+    
+    private List<Message> fetchMessagesFromServer() throws IOException {
+    List<Message> messages = new ArrayList<>();
+    try (Socket socket = new Socket("localhost", 8080);
+         PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+         BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+        
+        out.println("14");
+        out.println(Session.username); // Send admin username
+
+        Message currentMessage = null;
+        String line;
+        while ((line = in.readLine()) != null && !line.equals("END")) {
+            if (line.startsWith("TITLE:")) {
+                currentMessage = new Message();
+                currentMessage.setTitle(line.substring(6));
+            } else if (line.startsWith("USER:")) {
+                if (currentMessage != null) {
+                    currentMessage.setUser(line.substring(5));
+                }
+            } else if (line.startsWith("TEXT:")) {
+                if (currentMessage != null) {
+                    currentMessage.setContent(line.substring(5));
+                    messages.add(currentMessage);
+                    currentMessage = null;
+                }
+            }
+        }
+    }
+    return messages;
+}
 
 }

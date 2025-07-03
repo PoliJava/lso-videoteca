@@ -124,11 +124,6 @@ public class ViewCartController {
             return;
         }
         
-        /*Path currentDir = Paths.get("").toAbsolutePath();
-        Path dbPath = currentDir.resolve("server").resolve("videoteca.db");
-        Path dbAbsolutePath = dbPath.toAbsolutePath().normalize();
-        String url = "jdbc:sqlite:" + dbAbsolutePath.toString();
-        Usato in precedenza, ora da rimuovere*/
 
          try {
         Socket socket = new Socket("localhost", 8080);
