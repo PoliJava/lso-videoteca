@@ -1,4 +1,4 @@
-#include <stdio.h>
+ #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -15,8 +15,7 @@
 #define BACKLOG 10
 
 sqlite3 *db;
-
-// funzione per il rental return
+pthread_mutex_t db_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void get_expiration_date(char *buffer, size_t size)
 {
@@ -24,17 +23,13 @@ void get_expiration_date(char *buffer, size_t size)
     struct tm tm = *localtime(&t);
 
     tm.tm_mon += 1;
-
-    // Normalizza il tempo (aumenta l'anno se il mese è dicembre)
     mktime(&tm);
-
-    // Format: YYYY-MM-DD
     strftime(buffer, size, "%Y-%m-%d", &tm);
 }
 
-// funzioni registrazione e autenticazione utente
 void registerUser(sqlite3 *db, const char *username, const char *password)
 {
+    pthread_mutex_lock(&db_mutex);
     const char *sql = "INSERT INTO users (username, password) VALUES (?, ?)";
     sqlite3_stmt *stmt;
 
@@ -57,35 +52,25 @@ void registerUser(sqlite3 *db, const char *username, const char *password)
         fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
     }
     sqlite3_finalize(stmt);
+    pthread_mutex_unlock(&db_mutex);
 }
 
 int authenticateUser(sqlite3 *db, const char *username, const char *password)
 {
+    pthread_mutex_lock(&db_mutex);
     const char *sql = "SELECT 1 FROM users WHERE username = ? AND password = ?";
     sqlite3_stmt *stmt;
     int result = 0;
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
     {
-        printf("stmt: %s\n", sqlite3_sql(stmt));
         sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
-        printf("username: %s\n", username);
         sqlite3_bind_text(stmt, 2, password, -1, SQLITE_STATIC);
-        printf("password: %s\n", password);
 
-        printf("stmt: %s\n", sqlite3_sql(stmt));
-        // print SQLITE_ROW
         int stepResult = sqlite3_step(stmt);
-
         if (stepResult == SQLITE_ROW)
         {
-            printf("DEBUG - Login OK\n");
             result = 1;
-        }
-        else
-        {
-            printf("DEBUG - Login FALLITO, stepResult = %d\n", stepResult);
-            result = 0;
         }
     }
     else
@@ -93,36 +78,26 @@ int authenticateUser(sqlite3 *db, const char *username, const char *password)
         fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
     }
     sqlite3_finalize(stmt);
+    pthread_mutex_unlock(&db_mutex);
     return result;
 }
 
 int authenticateAdmin(sqlite3 *db, const char *username, const char *password)
 {
+    pthread_mutex_lock(&db_mutex);
     const char *sql = "SELECT 1 FROM admins WHERE username = ? AND password = ?";
     sqlite3_stmt *stmt;
     int result = 0;
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
     {
-        printf("stmt: %s\n", sqlite3_sql(stmt));
         sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
-        printf("username: %s\n", username);
         sqlite3_bind_text(stmt, 2, password, -1, SQLITE_STATIC);
-        printf("password: %s\n", password);
 
-        printf("stmt: %s\n", sqlite3_sql(stmt));
-        // print SQLITE_ROW
         int stepResult = sqlite3_step(stmt);
-
         if (stepResult == SQLITE_ROW)
         {
-            printf("DEBUG - Login OK\n");
             result = 1;
-        }
-        else
-        {
-            printf("DEBUG - Login FALLITO, stepResult = %d\n", stepResult);
-            result = 0;
         }
     }
     else
@@ -130,6 +105,7 @@ int authenticateAdmin(sqlite3 *db, const char *username, const char *password)
         fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
     }
     sqlite3_finalize(stmt);
+    pthread_mutex_unlock(&db_mutex);
     return result;
 }
 
@@ -157,16 +133,13 @@ int read_line(int fd, char *buffer, size_t max_len)
         }
         else if (n == 0)
         {
-            // EOF
             break;
         }
         else
         {
-            // Error
             return -1;
         }
     }
-    // Remove trailing carriage return if present
     if (i > 0 && buffer[i - 1] == '\r')
     {
         i--;
@@ -175,7 +148,6 @@ int read_line(int fd, char *buffer, size_t max_len)
     return i;
 }
 
-// funzioni per database
 void setupDatabase()
 {
     const char *dbName = "videoteca.db";
@@ -205,7 +177,6 @@ void setupDatabase()
                          "UPDATE movies SET availableCopies = availableCopies + 1 WHERE id = OLD.movieId; "
                          "END;";
     const char *sqlAdmin = "CREATE TABLE IF NOT EXISTS admins ( id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL)";
-    // const char *sqlUpd = "UPDATE movies SET availableCopies = CASE WHEN availableCopies > 0 THEN availableCopies - 1 ELSE 0 END WHERE id = NEW.movieId;";
     const char *sqlMessages = "CREATE TABLE IF NOT EXISTS messages ( id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, sender TEXT NOT NULL, title TEXT NOT NULL, message TEXT NOT NULL, movieId INTEGER NOT NULL, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (movieid) REFERENCES movies(id), FOREIGN KEY (username) REFERENCES users(username));";
     char *errMsg = 0;
 
@@ -217,15 +188,16 @@ void setupDatabase()
         sqlite3_exec(db, sqlInc, 0, 0, &errMsg) != SQLITE_OK ||
         sqlite3_exec(db, sqlAdmin, 0, 0, &errMsg) != SQLITE_OK ||
         sqlite3_exec(db, sqlMessages, 0, 0, &errMsg) != SQLITE_OK)
-        {
-            fprintf(stderr, "SQL Error: %s\n", errMsg);
-            sqlite3_free(errMsg);
-        }
+    {
+        fprintf(stderr, "SQL Error: %s\n", errMsg);
+        sqlite3_free(errMsg);
+    }
 }
 
 void loadMovies(struct Movie **movies, int *num_film)
 {
-    const char *sql = "SELECT id, title, genre, duration, totalCopies, availableCopies FROM movies"; // ordine parametri ? Si puo' mettere * o vuole tutte le colonne?
+    pthread_mutex_lock(&db_mutex);
+    const char *sql = "SELECT id, title, genre, duration, totalCopies, availableCopies FROM movies";
     sqlite3_stmt *stmt;
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
     {
@@ -242,11 +214,12 @@ void loadMovies(struct Movie **movies, int *num_film)
         }
     }
     sqlite3_finalize(stmt);
+    pthread_mutex_unlock(&db_mutex);
 }
 
-// funzioni per noleggio film e restituzione film
 void rentMovie(sqlite3 *db, int movieId, const char *username, const char *rentalDate, const char *returnDate)
 {
+    pthread_mutex_lock(&db_mutex);
     const char *sql = "INSERT INTO rentals (movieId, username, rentalDate, returnDate) VALUES (?, ?, ?, ?)";
     sqlite3_stmt *stmt;
 
@@ -279,23 +252,22 @@ void rentMovie(sqlite3 *db, int movieId, const char *username, const char *renta
         fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
     }
     sqlite3_finalize(stmt);
+    pthread_mutex_unlock(&db_mutex);
 }
 
 void returnMovie(sqlite3 *db, int movieId, const char *username)
 {
+    pthread_mutex_lock(&db_mutex);
     const char *sql = "DELETE FROM rentals WHERE username = ? AND movieId = ?";
     sqlite3_stmt *stmt;
     int rc;
     int rows_affected = 0;
-    // printf("Entered DelFromC\n");
-    printf("Deleting id %d for user %s\n", movieId, username);
-    // Inizia una transazione esplicita
     rc = sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
     if (rc != SQLITE_OK)
     {
         fprintf(stderr, "Error beginning transaction: %s\n", sqlite3_errmsg(db));
-        printf("-1\n");
-        return -1;
+        pthread_mutex_unlock(&db_mutex);
+        return;
     }
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
@@ -307,45 +279,40 @@ void returnMovie(sqlite3 *db, int movieId, const char *username)
         if (rc == SQLITE_DONE)
         {
             rows_affected = sqlite3_changes(db);
-            printf("Deleted %d rows from cart\n", rows_affected);
 
-            // Commit della transazione
             rc = sqlite3_exec(db, "COMMIT", 0, 0, 0);
             if (rc != SQLITE_OK)
             {
                 fprintf(stderr, "Error committing transaction: %s\n", sqlite3_errmsg(db));
                 sqlite3_finalize(stmt);
-                printf("-1\n");
-                return -1;
+                pthread_mutex_unlock(&db_mutex);
+                return;
             }
         }
         else
         {
             fprintf(stderr, "Error deleting from cart: %s\n", sqlite3_errmsg(db));
-            // Rollback in caso di errore
             sqlite3_exec(db, "ROLLBACK", 0, 0, 0);
             sqlite3_finalize(stmt);
-            printf("-1");
-            return -1;
+            pthread_mutex_unlock(&db_mutex);
+            return;
         }
         sqlite3_finalize(stmt);
-        printf("%d\n", (rows_affected > 0) ? 0 : 1);
-        return (rows_affected > 0) ? 0 : 1; // 0=success, 1=no rows deleted
+        pthread_mutex_unlock(&db_mutex);
+        return;
     }
     else
     {
         fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
         sqlite3_exec(db, "ROLLBACK", 0, 0, 0);
-        printf("-1");
-        return -1;
+        pthread_mutex_unlock(&db_mutex);
+        return;
     }
-
-    sqlite3_finalize(stmt);
 }
 
-// funzioni per carrello
 void getCart(sqlite3 *db, const char *username)
 {
+    pthread_mutex_lock(&db_mutex);
     const char *sql = "SELECT movieId FROM cart WHERE username = ?";
     sqlite3_stmt *stmt;
 
@@ -364,14 +331,16 @@ void getCart(sqlite3 *db, const char *username)
     {
         fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
     }
+    sqlite3_finalize(stmt);
+    pthread_mutex_unlock(&db_mutex);
 }
 
 int addToCart(sqlite3 *db, const char *username, int movieId)
 {
+    pthread_mutex_lock(&db_mutex);
     const char *sql = "INSERT INTO cart (username, movieId) VALUES (?, ?)";
     sqlite3_stmt *stmt;
-
-    printf("Chiamata addToCart\n");
+    int result = -1;
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
     {
@@ -381,37 +350,38 @@ int addToCart(sqlite3 *db, const char *username, int movieId)
         if (sqlite3_step(stmt) != SQLITE_DONE)
         {
             fprintf(stderr, "Error adding to cart: %s\n", sqlite3_errmsg(db));
-            sqlite3_finalize(stmt);
-            return -1; // errore
+            result = -1;
         }
         else
         {
             printf("Movie added to cart successfully.\n");
-            sqlite3_finalize(stmt);
-            return 0; // successo
+            result = 0;
         }
     }
     else
     {
         fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
-        return 1; // errore
+        result = 1;
     }
+    sqlite3_finalize(stmt);
+    pthread_mutex_unlock(&db_mutex);
+    return result;
 }
 
 int deleteFromCart(sqlite3 *db, const char *username, int movieid)
 {
+    pthread_mutex_lock(&db_mutex);
     const char *sql = "DELETE FROM cart WHERE username = ? AND movieid = ?";
     sqlite3_stmt *stmt;
     int rc;
     int rows_affected = 0;
-    // printf("Entered DelFromC\n");
-    printf("Deleting id %d for user %s\n", movieid, username);
-    // Inizia una transazione esplicita
+    int result = -1;
+
     rc = sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
     if (rc != SQLITE_OK)
     {
         fprintf(stderr, "Error beginning transaction: %s\n", sqlite3_errmsg(db));
-        printf("-1\n");
+        pthread_mutex_unlock(&db_mutex);
         return -1;
     }
 
@@ -424,65 +394,51 @@ int deleteFromCart(sqlite3 *db, const char *username, int movieid)
         if (rc == SQLITE_DONE)
         {
             rows_affected = sqlite3_changes(db);
-            printf("Deleted %d rows from cart\n", rows_affected);
-
-            // Commit della transazione
             rc = sqlite3_exec(db, "COMMIT", 0, 0, 0);
             if (rc != SQLITE_OK)
             {
                 fprintf(stderr, "Error committing transaction: %s\n", sqlite3_errmsg(db));
-                sqlite3_finalize(stmt);
-                printf("-1\n");
-                return -1;
+                result = -1;
+            }
+            else
+            {
+                result = (rows_affected > 0) ? 0 : 1;
             }
         }
         else
         {
             fprintf(stderr, "Error deleting from cart: %s\n", sqlite3_errmsg(db));
-            // Rollback in caso di errore
             sqlite3_exec(db, "ROLLBACK", 0, 0, 0);
-            sqlite3_finalize(stmt);
-            printf("-1");
-            return -1;
+            result = -1;
         }
         sqlite3_finalize(stmt);
-        printf("%d\n", (rows_affected > 0) ? 0 : 1);
-        return (rows_affected > 0) ? 0 : 1; // 0=success, 1=no rows deleted
     }
     else
     {
         fprintf(stderr, "Error preparing statement: %s\n", sqlite3_errmsg(db));
         sqlite3_exec(db, "ROLLBACK", 0, 0, 0);
-        printf("-1");
-        return -1;
+        result = -1;
     }
+    pthread_mutex_unlock(&db_mutex);
+    return result;
 }
 
 void *gestione_client(void *arg)
 {
     int client_fd = *((int *)arg);
-    memset(arg, 0, sizeof(arg));
-
+    free(arg);
     struct Movie *movies = malloc(100 * sizeof(struct Movie));
     int num_film = 0;
     loadMovies(&movies, &num_film);
 
     char buffer[1024];
     bzero(buffer, sizeof(buffer));
-    // ricezione del messaggio dal client
     read_line(client_fd, buffer, sizeof(buffer));
-    // read(client_fd, buffer, sizeof(buffer));
-    printf("Messaggio ricevuto dal client: %s\n", buffer);
-
     int scelta = atoi(buffer);
-    printf("Scelta: %d\n", scelta);
-
-    // TODO: Questo deve diventare uno switch ma ho paura che se lo tocco si scassa tutto
 
     if (scelta == 1)
     {
-        // Registrazione utente
-        char username[50], password[50]; // Assolutamente non sicuro. C'è un'alternativa migliore?
+        char username[50], password[50];
         memset(username, 0, sizeof(username));
         memset(password, 0, sizeof(password));
         read_line(client_fd, username, sizeof(username));
@@ -491,7 +447,6 @@ void *gestione_client(void *arg)
     }
     else if (scelta == 2)
     {
-        // Autenticazione utente
         char username[50], password[50];
         memset(username, 0, sizeof(username));
         memset(password, 0, sizeof(password));
@@ -507,7 +462,7 @@ void *gestione_client(void *arg)
             write(client_fd, "Login fallito.\n", strlen("Login fallito.\n"));
         }
     }
-    else if (scelta == 3) // aggiunta al carrello
+    else if (scelta == 3)
     {
         char username[100];
         char id_film_str[10];
@@ -516,28 +471,21 @@ void *gestione_client(void *arg)
         memset(username, 0, sizeof(username));
         memset(id_film_str, 0, sizeof(id_film_str));
 
-        // Leggi l'username dal client
         if (read_line(client_fd, username, sizeof(username)) <= 0)
         {
             printf("Errore durante la lettura dell'username.\n");
-            return;
+            goto cleanup;
         }
 
-        // Leggi l'ID del film
         if (read_line(client_fd, id_film_str, sizeof(id_film_str)) <= 0)
         {
             printf("Errore durante la lettura dell'id_film.\n");
-            return;
+            goto cleanup;
         }
 
-        // Converti l'ID del film in intero
         id_film = atoi(id_film_str);
-
-        // Debug
-        printf("Aggiunta al carrello richiesta da: %s per il film ID: %d\n", username, id_film);
-
-        // Aggiungi al carrello nel database
-        if (addToCart(db, username, id_film) == 0)
+        int result = addToCart(db, username, id_film);
+        if (result == 0)
         {
             write(client_fd, "Film aggiunto al carrello con successo.\n", 40);
         }
@@ -546,8 +494,7 @@ void *gestione_client(void *arg)
             write(client_fd, "Errore nell'aggiunta al carrello.\n", 35);
         }
     }
-
-    else if (scelta == 4) // cancellazione carrello
+    else if (scelta == 4)
     {
         char username[100];
         char id_film_str[10];
@@ -556,50 +503,45 @@ void *gestione_client(void *arg)
         memset(username, 0, sizeof(username));
         memset(id_film_str, 0, sizeof(id_film_str));
 
-        // Leggi l'username dal client
         if (read_line(client_fd, username, sizeof(username)) <= 0)
         {
             printf("Errore durante la lettura dell'username.\n");
-            return;
+            goto cleanup;
         }
 
-        // Leggi l'ID del film
         if (read_line(client_fd, id_film_str, sizeof(id_film_str)) <= 0)
         {
             printf("Errore durante la lettura dell'id_film.\n");
-            return;
+            goto cleanup;
         }
 
-        // Converti l'ID del film in intero
         id_film = atoi(id_film_str);
-
-        // Debug
-        printf("\nCancellazione dal carrello richiesta da: %s\n per il film ID: %d\n", username, id_film);
-
-        // Aggiungi al carrello nel database
-        if (deleteFromCart(db, username, id_film) == 0)
+        int result = deleteFromCart(db, username, id_film);
+        if (result == 0)
         {
-            printf("%s %d", db, username, id_film);
             write(client_fd, "Film rimosso dal carrello con successo.\n", strlen("Film rimosso dal carrello con successo.\n"));
+        }
+        else if (result == 1)
+        {
+            write(client_fd, "Film non trovato nel carrello.\n", 31);
         }
         else
         {
             write(client_fd, "Errore nella rimozione dal carrello.\n", strlen("Errore nella rimozione dal carrello.\n"));
         }
     }
-
-    else if (scelta == 5) // visualizzazione carrello
+    else if (scelta == 5)
     {
+        pthread_mutex_lock(&db_mutex);
         char username[100];
         memset(username, 0, sizeof(username));
 
         if (read_line(client_fd, username, sizeof(username)) <= 0)
         {
             printf("Errore durante la lettura dell'username.\n");
-            return;
+            pthread_mutex_unlock(&db_mutex);
+            goto cleanup;
         }
-
-        printf("Richiesta visualizzazione carrello per: %s\n", username);
 
         sqlite3_stmt *stmt;
         const char *sql = "SELECT m.id, m.title, m.genre, m.duration, m.availableCopies "
@@ -611,7 +553,8 @@ void *gestione_client(void *arg)
         {
             fprintf(stderr, "Errore nella preparazione della query: %s\n", sqlite3_errmsg(db));
             write(client_fd, "ERROR\n", 6);
-            return;
+            pthread_mutex_unlock(&db_mutex);
+            goto cleanup;
         }
 
         sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
@@ -630,13 +573,12 @@ void *gestione_client(void *arg)
         }
 
         sqlite3_finalize(stmt);
-
-        // Fine dati
         write(client_fd, "END_OF_CART\n", strlen("END_OF_CART\n"));
+        pthread_mutex_unlock(&db_mutex);
     }
-    else if (scelta == 6) // aggiunta ai noleggi
-    {                     // bisogna modulizzare in una funzione, è un casino da leggere
-
+    else if (scelta == 6)
+    {
+        pthread_mutex_lock(&db_mutex);
         char username[100];
         int nrows = 0;
         char buffer[32];
@@ -652,94 +594,89 @@ void *gestione_client(void *arg)
 
         time_t t = time(NULL);
         struct tm tm = *localtime(&t);
-        strftime(date, sizeof(date), "%Y-%m-%d", &tm); // Format: "YYYY-MM-DD"
+        strftime(date, sizeof(date), "%Y-%m-%d", &tm);
         get_expiration_date(exp_date, sizeof(exp_date));
 
         if (read_line(client_fd, username, sizeof(username)) <= 0)
         {
             printf("Errore durante la lettura dell'username.\n");
-            return;
+            pthread_mutex_unlock(&db_mutex);
+            goto cleanup;
         }
 
-        printf("DEBUG → Username ricevuto: '%s'\n", username);
-
-        // Leggi l'ID del film
         if (read_line(client_fd, buffer, sizeof(buffer)) <= 0)
         {
             printf("Errore durante la lettura dei numeri di righe.\n");
-            return;
+            pthread_mutex_unlock(&db_mutex);
+            goto cleanup;
         }
 
         nrows = atoi(buffer);
-        printf("%d\n", nrows);
-
         for (int i = 0; i < nrows; i++)
         {
             if (read_line(client_fd, movie_id, sizeof(movie_id)) <= 0)
             {
                 printf("Errore durante la lettura degli id.\n");
-                return;
+                pthread_mutex_unlock(&db_mutex);
+                goto cleanup;
             }
 
             int id = atoi(movie_id);
-
             sqlite3_stmt *stmt;
-            printf("DEBUG → Inserisco noleggio: user='%s', movieId=%d, date=%s, return=%s\n", username, id, date, exp_date);
-
             const char *sql = "INSERT INTO rentals (username, movieId, rentaldate, returndate) VALUES (?, ?, ?, ?)";
 
             if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
             {
                 fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db));
-                return;
+                pthread_mutex_unlock(&db_mutex);
+                goto cleanup;
             }
 
-            sqlite3_bind_text(stmt, 1, username, -1, SQLITE_TRANSIENT); // Bind username al primo ?
-            sqlite3_bind_int(stmt, 2, id);                              // Bind id al secondo ?
-            sqlite3_bind_text(stmt, 3, date, -1, SQLITE_TRANSIENT);     // Terzo ?
-            sqlite3_bind_text(stmt, 4, exp_date, -1, SQLITE_TRANSIENT); // Quarto ?
+            sqlite3_bind_text(stmt, 1, username, -1, SQLITE_TRANSIENT);
+            sqlite3_bind_int(stmt, 2, id);
+            sqlite3_bind_text(stmt, 3, date, -1, SQLITE_TRANSIENT);
+            sqlite3_bind_text(stmt, 4, exp_date, -1, SQLITE_TRANSIENT);
 
             if (sqlite3_step(stmt) != SQLITE_DONE)
             {
                 fprintf(stderr, "Execution failed: %s\n", sqlite3_errmsg(db));
-                return;
+                sqlite3_finalize(stmt);
+                pthread_mutex_unlock(&db_mutex);
+                goto cleanup;
             }
-
-            // printf("Aggiunto %d ai rentals con successo.\n", id);
-            write(client_fd, "Film aggiunto al carrello con successo.\n", 40);
             sqlite3_finalize(stmt);
         }
 
         sqlite3_stmt *stmt_clear;
         const char *sql_clear = "DELETE FROM cart WHERE USERNAME = ?";
-
         if (sqlite3_prepare_v2(db, sql_clear, -1, &stmt_clear, NULL) != SQLITE_OK)
         {
             fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db));
-            return;
+            pthread_mutex_unlock(&db_mutex);
+            goto cleanup;
         }
 
         sqlite3_bind_text(stmt_clear, 1, username, -1, SQLITE_TRANSIENT);
-
         if (sqlite3_step(stmt_clear) != SQLITE_DONE)
         {
             fprintf(stderr, "Execution failed: %s\n", sqlite3_errmsg(db));
         }
+        sqlite3_finalize(stmt_clear);
+        pthread_mutex_unlock(&db_mutex);
+        write(client_fd, "SUCCESS\n", 8);
     }
-
-    else if (scelta == 7) // visualizzazione noleggi
+    else if (scelta == 7)
     {
+        pthread_mutex_lock(&db_mutex);
         char username[100];
-
         memset(username, 0, sizeof(username));
 
         if (read_line(client_fd, username, sizeof(username)) <= 0)
         {
             printf("Errore durante la lettura dell'username.\n");
-            return;
+            pthread_mutex_unlock(&db_mutex);
+            goto cleanup;
         }
-
-        printf("Richiesta visualizzazione noleggi per: %s\n", username);
 
         sqlite3_stmt *stmt;
         const char *sql = "SELECT m.id, m.title, m.genre, m.duration, r.rentaldate, r.returndate "
@@ -751,11 +688,11 @@ void *gestione_client(void *arg)
         {
             fprintf(stderr, "Errore nella preparazione della query: %s\n", sqlite3_errmsg(db));
             write(client_fd, "ERROR\n", 6);
-            return;
+            pthread_mutex_unlock(&db_mutex);
+            goto cleanup;
         }
 
         sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
-
         while (sqlite3_step(stmt) == SQLITE_ROW)
         {
             int id = sqlite3_column_int(stmt, 0);
@@ -764,9 +701,7 @@ void *gestione_client(void *arg)
             int duration = sqlite3_column_int(stmt, 3);
             const unsigned char *rentalDate = sqlite3_column_text(stmt, 4);
             const unsigned char *expirationDate = sqlite3_column_text(stmt, 5);
-            // paura: la data è formattata nello stesso modo fra come noi la segniamo e come Java la mette in LocalDate?
 
-            printf("%s data - %s scadenza", rentalDate, expirationDate);
             char row[1024];
             memset(row, 0, sizeof(row));
             snprintf(row, sizeof(row), "%d|%s|%s|%d|%s|%s\n", id, title, genre, duration, rentalDate, expirationDate);
@@ -774,37 +709,33 @@ void *gestione_client(void *arg)
         }
 
         sqlite3_finalize(stmt);
-
-        // Fine dati
         write(client_fd, "END_OF_CART\n", strlen("END_OF_CART\n"));
+        pthread_mutex_unlock(&db_mutex);
     }
-
     else if (scelta == 8)
     {
+        pthread_mutex_lock(&db_mutex);
         char username[100];
         char movieIdStr[20];
         int movieId;
 
-        // Read username
         if (read_line(client_fd, username, sizeof(username)) <= 0)
         {
-            write(client_fd, "ERROR: Missing username\n", 23);
-            return;
+            write(client_fd, "ERROR: Missing username\n", 24);
+            pthread_mutex_unlock(&db_mutex);
+            goto cleanup;
         }
 
-        // Read movie ID
         if (read_line(client_fd, movieIdStr, sizeof(movieIdStr)) <= 0)
         {
             write(client_fd, "ERROR: Missing movie ID\n", 24);
-            return;
+            pthread_mutex_unlock(&db_mutex);
+            goto cleanup;
         }
 
         movieId = atoi(movieIdStr);
-
-        // Start transaction
         sqlite3_exec(db, "BEGIN TRANSACTION", 0, 0, 0);
 
-        // Delete from rentals
         const char *deleteSql = "DELETE FROM rentals WHERE username = ? AND movieId = ?";
         sqlite3_stmt *deleteStmt;
 
@@ -816,12 +747,11 @@ void *gestione_client(void *arg)
             if (sqlite3_step(deleteStmt) != SQLITE_DONE)
             {
                 fprintf(stderr, "Delete failed: %s\n", sqlite3_errmsg(db));
-                write(client_fd, "ERROR: Delete failed\n", 20);
+                write(client_fd, "ERROR: Delete failed\n", 21);
                 sqlite3_exec(db, "ROLLBACK", 0, 0, 0);
             }
             else
             {
-                // Update available copies
                 const char *updateSql = "UPDATE movies SET availableCopies = availableCopies + 1 WHERE id = ?";
                 sqlite3_stmt *updateStmt;
 
@@ -842,19 +772,25 @@ void *gestione_client(void *arg)
                     }
                     sqlite3_finalize(updateStmt);
                 }
+                else
+                {
+                    fprintf(stderr, "Prepare update failed: %s\n", sqlite3_errmsg(db));
+                    write(client_fd, "ERROR: Prepare update failed\n", 28);
+                    sqlite3_exec(db, "ROLLBACK", 0, 0, 0);
+                }
             }
             sqlite3_finalize(deleteStmt);
         }
         else
         {
-            fprintf(stderr, "Prepare failed: %s\n", sqlite3_errmsg(db));
-            write(client_fd, "ERROR: Prepare failed\n", 22);
+            fprintf(stderr, "Prepare delete failed: %s\n", sqlite3_errmsg(db));
+            write(client_fd, "ERROR: Prepare delete failed\n", 28);
             sqlite3_exec(db, "ROLLBACK", 0, 0, 0);
         }
+        pthread_mutex_unlock(&db_mutex);
     }
-    else if (scelta == 9) // login admin
+    else if (scelta == 9)
     {
-        printf("Handling movies request\n");
         char username[50], password[50];
         memset(username, 0, sizeof(username));
         memset(password, 0, sizeof(password));
@@ -871,7 +807,8 @@ void *gestione_client(void *arg)
         }
     }
     else if (scelta == 10)
-    { // film
+    {
+        pthread_mutex_lock(&db_mutex);
         sqlite3_stmt *stmt;
         const char *sql = "SELECT id, title, genre, duration, availableCopies, totalCopies FROM movies";
 
@@ -889,254 +826,184 @@ void *gestione_client(void *arg)
                          sqlite3_column_int(stmt, 5));
                 write(client_fd, row, strlen(row));
             }
-
             write(client_fd, "END_OF_DATA\n", 12);
         }
         sqlite3_finalize(stmt);
+        pthread_mutex_unlock(&db_mutex);
     }
     else if (scelta == 11)
     {
+        pthread_mutex_lock(&db_mutex);
         sqlite3_stmt *stmt;
         const char *sql = "SELECT r.movieId, m.title, r.username, r.rentaldate, r.returndate FROM rentals r JOIN movies m ON r.movieId = m.id";
 
         if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) == SQLITE_OK)
         {
-            // First send count
             int count = 0;
             while (sqlite3_step(stmt) == SQLITE_ROW)
                 count++;
             dprintf(client_fd, "COUNT:%d\n", count);
             sqlite3_reset(stmt);
 
-            // Send each column separately
             while (sqlite3_step(stmt) == SQLITE_ROW)
             {
                 dprintf(client_fd, "MOVIEID:%d\n", sqlite3_column_int(stmt, 0));
-                dprintf(client_fd, "TITLE:%s\n", sqlite3_column_text(stmt, 1)); // Send the movie title
-                printf("DEBUG - Sending title: %s\n", sqlite3_column_text(stmt, 1));
+                dprintf(client_fd, "TITLE:%s\n", sqlite3_column_text(stmt, 1));
                 dprintf(client_fd, "USERNAME:%s\n", sqlite3_column_text(stmt, 2));
                 dprintf(client_fd, "RENTALDATE:%s\n", sqlite3_column_text(stmt, 3));
                 dprintf(client_fd, "RETURNDATE:%s\n", sqlite3_column_text(stmt, 4));
-                dprintf(client_fd, "----\n"); // Record separator
+                dprintf(client_fd, "----\n");
             }
             write(client_fd, "END\n", 4);
         }
         sqlite3_finalize(stmt);
+        pthread_mutex_unlock(&db_mutex);
     }
-
     else if (scelta == 12)
-    { // Add new movie (admin)
+    {
+        pthread_mutex_lock(&db_mutex);
         char title[100], genre[50];
         char durationStr[10], totalCopiesStr[10];
         int duration, totalCopies;
 
-        printf("DEBUG: Received request to add new movie\n");
-
-        // Read movie data from client
         if (read_line(client_fd, title, sizeof(title)) <= 0)
         {
-            printf("ERROR: Failed to read title\n");
             write(client_fd, "ERROR: Failed to read title\n", 28);
-            return;
+            pthread_mutex_unlock(&db_mutex);
+            goto cleanup;
         }
         if (read_line(client_fd, genre, sizeof(genre)) <= 0)
         {
-            printf("ERROR: Failed to read genre\n");
             write(client_fd, "ERROR: Failed to read genre\n", 28);
-            return;
+            pthread_mutex_unlock(&db_mutex);
+            goto cleanup;
         }
         if (read_line(client_fd, durationStr, sizeof(durationStr)) <= 0)
         {
-            printf("ERROR: Failed to read duration\n");
             write(client_fd, "ERROR: Failed to read duration\n", 30);
-            return;
+            pthread_mutex_unlock(&db_mutex);
+            goto cleanup;
         }
         if (read_line(client_fd, totalCopiesStr, sizeof(totalCopiesStr)) <= 0)
         {
-            printf("ERROR: Failed to read total copies\n");
             write(client_fd, "ERROR: Failed to read total copies\n", 34);
-            return;
+            pthread_mutex_unlock(&db_mutex);
+            goto cleanup;
         }
-
-        printf("DEBUG: Received data - Title: %s, Genre: %s, Duration: %s, Copies: %s\n",
-               title, genre, durationStr, totalCopiesStr);
 
         duration = atoi(durationStr);
         totalCopies = atoi(totalCopiesStr);
-
-        // Prepare SQL statement
         const char *sql = "INSERT INTO movies (title, genre, duration, totalCopies, availableCopies) VALUES (?, ?, ?, ?, ?)";
         sqlite3_stmt *stmt;
 
-        printf("DEBUG: Preparing SQL statement\n");
         if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
         {
-            printf("DEBUG: Binding parameters\n");
             sqlite3_bind_text(stmt, 1, title, -1, SQLITE_STATIC);
             sqlite3_bind_text(stmt, 2, genre, -1, SQLITE_STATIC);
             sqlite3_bind_int(stmt, 3, duration);
             sqlite3_bind_int(stmt, 4, totalCopies);
             sqlite3_bind_int(stmt, 5, totalCopies);
 
-            printf("DEBUG: Executing statement\n");
             int rc = sqlite3_step(stmt);
             if (rc == SQLITE_DONE)
             {
-                printf("DEBUG: Movie added, committing transaction\n");
-                sqlite3_exec(db, "COMMIT", 0, 0, 0); // Commit transaction
                 write(client_fd, "SUCCESS\n", 8);
             }
             else
             {
-                printf("ERROR: Failed to execute statement: %s\n", sqlite3_errmsg(db));
-                sqlite3_exec(db, "ROLLBACK", 0, 0, 0); // Rollback on error
                 write(client_fd, "ERROR: Failed to add movie\n", 26);
             }
             sqlite3_finalize(stmt);
         }
         else
         {
-            sqlite3_exec(db, "ROLLBACK", 0, 0, 0); // Rollback on error
-            printf("ERROR: Failed to prepare statement: %s\n", sqlite3_errmsg(db));
             write(client_fd, "ERROR: Database error\n", 22);
         }
+        pthread_mutex_unlock(&db_mutex);
     }
-  else if(scelta == 13){
-    printf("Aggiunta di msg al database.\n");
-    // 1. adminUsername
-    // 2. username (recipient)
-    // 3. movieTitle
-    // 4. movieId
-    // 5. messageContent
+    else if (scelta == 13)
+    {
+        pthread_mutex_lock(&db_mutex);
+        char admin_username[512];
+        char username[512];
+        char movie_title[512];
+        char movie_id_str[4];
+        char message_content[4096];
 
-    char admin_username[512];
-    char username[512]; // Recipient
-    char movie_title[512];
-    char movie_id_str[4];
-    char message_content[4096];
+        if (read_line(client_fd, admin_username, sizeof(admin_username)) <= 0 ||
+            read_line(client_fd, username, sizeof(username)) <= 0 ||
+            read_line(client_fd, movie_title, sizeof(movie_title)) <= 0 ||
+            read_line(client_fd, movie_id_str, sizeof(movie_id_str)) <= 0 ||
+            read_line(client_fd, message_content, sizeof(message_content)) <= 0)
+        {
+            pthread_mutex_unlock(&db_mutex);
+            goto cleanup;
+        }
 
-    memset(admin_username, 0, sizeof(admin_username));
-    memset(username, 0, sizeof(username));
-    memset(movie_title, 0, sizeof(movie_title));
-    memset(movie_id_str, 0, sizeof(movie_id_str));
-    memset(message_content, 0, sizeof(message_content));
+        int movie_id = atoi(movie_id_str);
+        sqlite3_stmt *stmt;
+        const char *sql = "INSERT INTO messages (username, sender, title, movieId, message, timestamp) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)";
 
-    // Read adminUsername using read_line
-    if (read_line(client_fd, admin_username, sizeof(admin_username)) <= 0) {
-        perror("Failed to read admin_username for command 13");
-        return;
+        if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
+        {
+            sqlite3_bind_text(stmt, 1, username, -1, SQLITE_TRANSIENT);
+            sqlite3_bind_text(stmt, 2, admin_username, -1, SQLITE_TRANSIENT);
+            sqlite3_bind_text(stmt, 3, movie_title, -1, SQLITE_TRANSIENT);
+            sqlite3_bind_int(stmt, 4, movie_id);
+            sqlite3_bind_text(stmt, 5, message_content, -1, SQLITE_TRANSIENT);
+
+            if (sqlite3_step(stmt) == SQLITE_DONE)
+            {
+                send(client_fd, "SUCCESS\n", 8, 0);
+            }
+            else
+            {
+                send(client_fd, "ERROR: Failed to insert message\n", 31, 0);
+            }
+            sqlite3_finalize(stmt);
+        }
+        else
+        {
+            send(client_fd, "ERROR: Database preparation failed\n", 34, 0);
+        }
+        pthread_mutex_unlock(&db_mutex);
     }
-    printf("DEBUG - Received admin_username: '%s'\n", admin_username);
+    else if (scelta == 14)
+    {
+        pthread_mutex_lock(&db_mutex);
+        char adminname[100];
+        memset(adminname, 0, sizeof(adminname));
 
+        if (read_line(client_fd, adminname, sizeof(adminname)) <= 0)
+        {
+            pthread_mutex_unlock(&db_mutex);
+            goto cleanup;
+        }
 
-    // Read username (recipient) using read_line
-    if (read_line(client_fd, username, sizeof(username)) <= 0) {
-        perror("Failed to read username for command 13");
-        return;
-    }
-    printf("DEBUG - Received username: '%s'\n", username);
+        sqlite3_stmt *stmt;
+        const char *sql = "SELECT title, username, message FROM messages WHERE sender = ?";
 
-
-    // Read movieTitle using read_line
-    if (read_line(client_fd, movie_title, sizeof(movie_title)) <= 0) {
-        perror("Failed to read movie_title for command 13");
-        return;
-    }
-    printf("DEBUG - Received movie_title: '%s'\n", movie_title);
-
-
-    // Read movieId using read_line
-    if (read_line(client_fd, movie_id_str, sizeof(movie_id_str)) <= 0) {
-        perror("Failed to read movie_id for command 13");
-        return;
-    }
-    int movie_id = atoi(movie_id_str);
-    printf("DEBUG - Received movie_id: '%d'\n", movie_id);
-
-
-    // Read messageContent using read_line
-    if (read_line(client_fd, message_content, sizeof(message_content)) <= 0) {
-        perror("Failed to read message_content for command 13");
-        return;
-    }
-    printf("DEBUG - Received message_content: '%s'\n", message_content);
-
-
-    // Prepare SQL statement to insert the message into the 'messages' table
-    sqlite3_stmt *stmt;
-    const char *sql = "INSERT INTO messages (username, sender, title, movieId, message, timestamp) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)";
-    // NOTE: Changed sendDate to timestamp and used CURRENT_TIMESTAMP directly in SQL for simplicity and consistency.
-    // If 'sendDate' is a specific column name and type, adjust accordingly.
-
-    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, 0);
-    if (rc != SQLITE_OK) {
-        fprintf(stderr, "Failed to prepare statement for message insertion: %s\n", sqlite3_errmsg(db));
-        send(client_fd, "ERROR: Database preparation failed\n", strlen("ERROR: Database preparation failed\n"), 0); // Add newline for consistency
-        return;
-    }
-
-    // Bind parameters to the prepared statement
-    sqlite3_bind_text(stmt, 1, username, -1, SQLITE_TRANSIENT); // Recipient
-    sqlite3_bind_text(stmt, 2, admin_username, -1, SQLITE_TRANSIENT); // Sender (Admin)
-    sqlite3_bind_text(stmt, 3, movie_title, -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int(stmt, 4, movie_id);
-    sqlite3_bind_text(stmt, 5, message_content, -1, SQLITE_TRANSIENT);
-
-    rc = sqlite3_step(stmt); // Execute the statement
-    if (rc != SQLITE_DONE) {
-        fprintf(stderr, "Failed to insert message: %s\n", sqlite3_errmsg(db));
-        send(client_fd, "ERROR: Failed to insert message\n", strlen("ERROR: Failed to insert message\n"), 0); // Add newline
-    } else {
-        printf("Message successfully inserted into database.\n");
-        send(client_fd, "SUCCESS\n", strlen("SUCCESS\n"), 0); // Add newline for consistency
+        if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK)
+        {
+            sqlite3_bind_text(stmt, 1, adminname, -1, SQLITE_STATIC);
+            while (sqlite3_step(stmt) == SQLITE_ROW)
+            {
+                const char *title = (const char*)sqlite3_column_text(stmt, 0);
+                const char *username = (const char*)sqlite3_column_text(stmt, 1);
+                const char *message = (const char*)sqlite3_column_text(stmt, 2);
+                dprintf(client_fd, "TITLE:%s\n", title);
+                dprintf(client_fd, "USER:%s\n", username);
+                dprintf(client_fd, "TEXT:%s\n", message);
+            }
+            write(client_fd, "END\n", 4);
+            sqlite3_finalize(stmt);
+        }
+        pthread_mutex_unlock(&db_mutex);
     }
 
-    sqlite3_finalize(stmt); // Clean up the statement
-}
-else if(scelta == 14){
-    printf("Handling message retrieval for admin\n");
-    char adminname[100];
-    memset(adminname, 0, sizeof(adminname));
-
-    // Read admin username
-    if (read_line(client_fd, adminname, sizeof(adminname)) <= 0) {
-        perror("Failed to read admin username for command 14");
-        return;
-    }
-
-    // Prepare SQL statement
-    const char *sql = "SELECT title, username, message FROM messages WHERE sender = ?";
-    sqlite3_stmt *stmt;
-    
-    if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) != SQLITE_OK) {
-        fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db));
-        write(client_fd, "ERROR: Database error\n", 22);
-        return;
-    }
-
-    // Bind admin username parameter
-    sqlite3_bind_text(stmt, 1, adminname, -1, SQLITE_STATIC);
-
-    // Execute query and send results
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
-        const char *title = (const char*)sqlite3_column_text(stmt, 0);
-        const char *username = (const char*)sqlite3_column_text(stmt, 1);
-        const char *message = (const char*)sqlite3_column_text(stmt, 2);
-
-        // Send data in client-expected format
-        dprintf(client_fd, "TITLE:%s\n", title);
-        dprintf(client_fd, "USER:%s\n", username);
-        dprintf(client_fd, "TEXT:%s\n", message);
-    }
-
-    // Send end marker
-    write(client_fd, "END\n", 4);
-    sqlite3_finalize(stmt);
-}
-    
-    sleep(1);
+cleanup:
+    free(movies);
     close(client_fd);
-    printf("Client fd chiuso\n");
     pthread_exit(NULL);
 }
 
@@ -1147,27 +1014,22 @@ int main()
     struct sockaddr_in server_address, client_address;
     socklen_t client_len = sizeof(client_address);
 
-    // creazione della socket
     if ((fd1 = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         perror("Failed to create socket...\n");
         exit(1);
     }
 
-    // inizializzazione della struttura sockaddr_in
-    // bzero(&server_address, sizeof(server_address));
-    server_address.sin_family = AF_INET;                // IPv4
-    server_address.sin_addr.s_addr = htons(INADDR_ANY); // accetta fg da qualsiasi indirizzo
-    server_address.sin_port = htons(8080);              // porta 80
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = htons(INADDR_ANY);
+    server_address.sin_port = htons(8080);
 
-    // binding socket
-    if ((bind(fd1, &server_address, sizeof(server_address))) < 0)
+    if ((bind(fd1, (struct sockaddr*)&server_address, sizeof(server_address))) < 0)
     {
         perror("Failed to bind socket...\n");
         exit(1);
     }
 
-    // listening
     if ((listen(fd1, BACKLOG)) != 0)
     {
         perror("Failed to start listening...\n");
@@ -1178,9 +1040,8 @@ int main()
 
     while (1)
     {
-        printf("====WAITING FOR CONNECTION====\n");
         int *fd2 = malloc(sizeof(int));
-        if ((*fd2 = accept(fd1, (struct sockaddr *)&client_address, &client_len)) < 0)
+        if ((*fd2 = accept(fd1, (struct sockaddr*)&client_address, &client_len)) < 0)
         {
             perror("Failed to accept connection...\n");
             free(fd2);
@@ -1197,6 +1058,7 @@ int main()
         pthread_detach(tid);
     }
     close(fd1);
+    pthread_mutex_destroy(&db_mutex);
     sqlite3_close(db);
     return 0;
 }

@@ -236,13 +236,13 @@ for (Integer id : toRent) {
         String response = in.readLine();
         System.out.println(response);
 
-        if (!response.contains("successo")) {
+        if (!"SUCCESS".equals(response)) {
             // Mostra un messaggio di errore all'utente
             Platform.runLater(() -> {
                 Alert alert = new Alert(Alert.AlertType.ERROR);
                 alert.setTitle("Errore");
-                alert.setHeaderText("Impossibile rimuovere il film");
-                alert.setContentText("Si è verificato un errore durante la rimozione dal carrello.");
+                alert.setHeaderText("Impossibile noleggiare il film");
+                alert.setContentText("Qualcuno ha già noleggiato il file!");
                 alert.showAndWait();
             });
         }

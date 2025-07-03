@@ -38,8 +38,8 @@ public class ViewRentalsController {
     @FXML
     private void initialize() throws SQLException {
         titleColumn.setCellValueFactory(new PropertyValueFactory<>("title"));
-        rentalDate.setCellValueFactory(new PropertyValueFactory<>("genre"));
-        returnDate.setCellValueFactory(new PropertyValueFactory<>("duration"));
+        rentalDate.setCellValueFactory(new PropertyValueFactory<>("rentalDate"));
+        returnDate.setCellValueFactory(new PropertyValueFactory<>("expirationDate"));
 
         setButton();
     }
