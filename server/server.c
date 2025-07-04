@@ -708,7 +708,7 @@ static void viewMessagesUser(int client_fd, const char *username){
             const char *username = (const char*)sqlite3_column_text(stmt, 2);
             const char *message = (const char*)sqlite3_column_text(stmt, 3);
             dprintf(client_fd, "TITLE:%s\n", title);
-            dprintf(client_fd, "SENDER::%s\n", sender);
+            dprintf(client_fd, "SENDER:%s\n", sender);
             dprintf(client_fd, "USER:%s\n", username);
             dprintf(client_fd, "TEXT:%s\n", message);
         }
