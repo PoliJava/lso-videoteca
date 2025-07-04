@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Label?>
+
+<VBox xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" spacing="10" alignment="TOP_CENTER" style="-fx-padding: 20;" fx:controller="com.videoteca.ViewMessagesController">
+    <Label text="Avvisi" style="-fx-font-size: 24px;"/>
+    <TableView fx:id="messagesTable" prefWidth="600">
+        <columns>
+            <TableColumn fx:id="adminColumn" text="Admin" prefWidth="150"/>
+            <TableColumn fx:id="titleColumn" text="Film" prefWidth="150"/>
+            <TableColumn fx:id="expireDateColumn" text="DataDiScadenza" prefWidth="150"/>
+             <TableColumn fx:id="detailsButtonColumn" text="Mess" />
+        </columns>
+    </TableView>
+</VBox>

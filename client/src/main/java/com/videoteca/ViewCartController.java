@@ -242,7 +242,7 @@ for (Integer id : toRent) {
                 Alert alert = new Alert(Alert.AlertType.ERROR);
                 alert.setTitle("Errore");
                 alert.setHeaderText("Impossibile noleggiare il film");
-                alert.setContentText("Qualcuno ha già noleggiato il file!");
+                alert.setContentText("Le copie sono esaurite!");
                 alert.showAndWait();
             });
         }

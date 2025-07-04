@@ -119,6 +119,7 @@ public class ViewMessagesController {
             messageList.clear();
 
             while (rs.next()) {
+                if(rs.getString("username").equals(Session.username)){
                 messageList.add(new Message(
                     rs.getString("sender"),
                     rs.getString("username"),
@@ -127,6 +128,7 @@ public class ViewMessagesController {
                     rs.getInt("movieId"),
                     rs.getString("message")
                 ));
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
