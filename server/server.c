@@ -1,4 +1,4 @@
- #include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -727,7 +727,10 @@ void *gestione_client(void *arg)
 
     char buffer[1024];
     bzero(buffer, sizeof(buffer));
-    read_line(client_fd, buffer, sizeof(buffer));
+    if (read_line(client_fd, buffer, sizeof(buffer)) <= 0) {
+        perror("Failed to read choice\n");
+        goto cleanup;
+    }
     int scelta = atoi(buffer);
 
     switch (scelta) {
@@ -735,8 +738,11 @@ void *gestione_client(void *arg)
             char username[50], password[50];
             memset(username, 0, sizeof(username));
             memset(password, 0, sizeof(password));
-            read_line(client_fd, username, sizeof(username));
-            read_line(client_fd, password, sizeof(password));
+            if (read_line(client_fd, username, sizeof(username)) <= 0 ||
+                read_line(client_fd, password, sizeof(password)) <= 0) {
+                perror("Failed to read user registration data\n");
+                goto cleanup;
+            }
             registerUser(db, username, password);
             break;
         }
@@ -744,8 +750,11 @@ void *gestione_client(void *arg)
             char username[50], password[50];
             memset(username, 0, sizeof(username));
             memset(password, 0, sizeof(password));
-            read_line(client_fd, username, sizeof(username));
-            read_line(client_fd, password, sizeof(password));
+            if (read_line(client_fd, username, sizeof(username)) <= 0 ||
+                read_line(client_fd, password, sizeof(password)) <= 0) {
+                perror("Failed to read user login data\n");
+                goto cleanup;
+            }
 
             if (authenticateUser(db, username, password) == 1) {
                 write(client_fd, "Login riuscito!\n", strlen("Login riuscito!\n"));
@@ -891,8 +900,11 @@ void *gestione_client(void *arg)
             char username[50], password[50];
             memset(username, 0, sizeof(username));
             memset(password, 0, sizeof(password));
-            read_line(client_fd, username, sizeof(username));
-            read_line(client_fd, password, sizeof(password));
+            if (read_line(client_fd, username, sizeof(username)) <= 0 ||
+                read_line(client_fd, password, sizeof(password)) <= 0) {
+                perror("Failed to read admin login data\n");
+                goto cleanup;
+            }
 
             if (authenticateAdmin(db, username, password) == 1) {
                 write(client_fd, "Login riuscito!\n", strlen("Login riuscito!\n"));
@@ -970,14 +982,7 @@ void *gestione_client(void *arg)
         }
         case 14: {
             pthread_mutex_lock(&db_mutex);
-            //char adminname[100];
-            //memset(adminname, 0, sizeof(adminname));
-
-            /*if (read_line(client_fd, adminname, sizeof(adminname)) <= 0) {
-                pthread_mutex_unlock(&db_mutex);
-                goto cleanup;
-            }*/
-            viewMessagesAdmin(client_fd/*, adminname*/);
+            viewMessagesAdmin(client_fd);
             pthread_mutex_unlock(&db_mutex);
             break;
         }
@@ -1005,8 +1010,6 @@ cleanup:
     close(client_fd);
     pthread_exit(NULL);
 }
-
-
 
 int main()
 {
