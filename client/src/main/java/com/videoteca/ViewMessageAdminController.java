@@ -14,13 +14,19 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Callback; // Import Callback
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ViewMessageAdminController {
 
@@ -39,7 +45,7 @@ public class ViewMessageAdminController {
     private ObservableList<Message> messageList;
 
     @FXML
-    public void initialize() {
+    public void initialize() throws Exception {
         // Initialize existing columns
         userColumn.setCellValueFactory(new PropertyValueFactory<>("user"));
         titleColumn.setCellValueFactory(new PropertyValueFactory<>("title"));
@@ -54,17 +60,6 @@ public class ViewMessageAdminController {
 
         loadMessagesFromDatabase();
 
-        // REMOVE THE OLD DOUBLE-CLICK LISTENER if you prefer only the button
-        // If you want both double-click and button, keep this block.
-        // messagesTable.setOnMouseClicked(event -> {
-        // if (event.getClickCount() == 2) {
-        // Message selectedMessage =
-        // messagesTable.getSelectionModel().getSelectedItem();
-        // if (selectedMessage != null) {
-        // showMessageDetail(selectedMessage);
-        // }
-        // }
-        // });
     }
 
     private void setupDetailsButtonColumn() {
@@ -105,36 +100,42 @@ public class ViewMessageAdminController {
         detailsButtonColumn.setResizable(false); // Make it not resizable
     }
 
-    public void loadMessagesFromDatabase() {
-        // String url =
-        // "jdbc:sqlite:C:\\Users\\PlayXtreme\\Desktop\\Uni\\PROGETTI\\LSO\\lso-videoteca\\server\\videoteca.db";
-        // //da rendere universale
-        String url = "jdbc:sqlite:" + System.getProperty("user.dir") + "/server/videoteca.db";
-        String sql = "SELECT me.id, me.username, me.sender, mo.title, me.message, me.movieId, re.returndate " +
-                "FROM messages me " +
-                "JOIN movies mo ON me.movieid = mo.id " +
-                "JOIN rentals re ON re.movieId = me.movieId AND re.username = me.username";
+   
 
-        try (Connection conn = DriverManager.getConnection(url);
-                Statement stmt = conn.createStatement();
-                ResultSet rs = stmt.executeQuery(sql)) {
+ private List<Message> loadMessagesFromDatabase() throws Exception {
+        List<Message> messages = new ArrayList<>();
 
-            messageList.clear();
+        try (Socket socket = new Socket("localhost", 8080);
+                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
-            while (rs.next()) {
-                messageList.add(new Message(
-                        rs.getString("sender"),
-                        rs.getString("username"),
-                        rs.getString("title"),
-                        rs.getString("returndate"),
-                        rs.getInt("movieId"),
-                        rs.getString("message")));
+            out.println("14");
+
+            int expectedRecords = 0;
+            int currentRecord = 0;
+            Message message = null;
+
+            String line;
+            while ((line = in.readLine()) != null && !line.equals("END")) {
+                if (line.startsWith("TITLE:")) {
+                    message = new Message();
+                    message.setTitle(line.substring(6));
+                } else if (line.startsWith("USER:")) {
+                    if (message != null)
+                        message.setUser(line.substring(5)); 
+                } else if (line.startsWith("TEXT:")) {
+                    if (message != null)
+                        message.setContent(line.substring(5));
+                } 
+
+                if(message != null){
+                    messages.add(message);
+                } 
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.err.println("Database error: " + e.getMessage());
-            // Handle error (e.g., show alert to user)
+
+            System.out.println("Received " + currentRecord + " of " + expectedRecords + " records");
         }
+        return messages;
     }
 
     private void showMessageDetail(Message message) {

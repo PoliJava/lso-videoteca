@@ -677,17 +677,38 @@ static void sendMessage(int client_fd, const char *admin_username, const char *u
     }
 }
 
-static void viewMessages(int client_fd, const char *adminname) {
+static void viewMessagesAdmin(int client_fd/*, char* adminname*/) {
     sqlite3_stmt *stmt;
-    const char *sql = "SELECT title, username, message FROM messages WHERE sender = ?";
+    const char *sql = "SELECT title, username, message FROM messages"; //WHERE sender = ?
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK) {
-        sqlite3_bind_text(stmt, 1, adminname, -1, SQLITE_STATIC);
+        //sqlite3_bind_text(stmt, 1, adminname, -1, SQLITE_STATIC);
         while (sqlite3_step(stmt) == SQLITE_ROW) {
             const char *title = (const char*)sqlite3_column_text(stmt, 0);
             const char *username = (const char*)sqlite3_column_text(stmt, 1);
             const char *message = (const char*)sqlite3_column_text(stmt, 2);
             dprintf(client_fd, "TITLE:%s\n", title);
+            dprintf(client_fd, "USER:%s\n", username);
+            dprintf(client_fd, "TEXT:%s\n", message);
+        }
+        write(client_fd, "END\n", 4);
+        sqlite3_finalize(stmt);
+    }
+}
+
+static void viewMessagesUser(int client_fd, const char *username){
+    sqlite3_stmt *stmt;
+    const char *sql = "SELECT title, sender, username, message FROM messages WHERE username = ?";
+
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            const char *title = (const char*)sqlite3_column_text(stmt, 0);
+            const char *sender = (const char*)sqlite3_column_text(stmt, 1);
+            const char *username = (const char*)sqlite3_column_text(stmt, 2);
+            const char *message = (const char*)sqlite3_column_text(stmt, 3);
+            dprintf(client_fd, "TITLE:%s\n", title);
+            dprintf(client_fd, "SENDER::%s\n", sender);
             dprintf(client_fd, "USER:%s\n", username);
             dprintf(client_fd, "TEXT:%s\n", message);
         }
@@ -949,19 +970,33 @@ void *gestione_client(void *arg)
         }
         case 14: {
             pthread_mutex_lock(&db_mutex);
-            char adminname[100];
-            memset(adminname, 0, sizeof(adminname));
+            //char adminname[100];
+            //memset(adminname, 0, sizeof(adminname));
 
-            if (read_line(client_fd, adminname, sizeof(adminname)) <= 0) {
+            /*if (read_line(client_fd, adminname, sizeof(adminname)) <= 0) {
                 pthread_mutex_unlock(&db_mutex);
                 goto cleanup;
-            }
-            viewMessages(client_fd, adminname);
+            }*/
+            viewMessagesAdmin(client_fd/*, adminname*/);
             pthread_mutex_unlock(&db_mutex);
             break;
         }
+        case 15: {
+            pthread_mutex_lock(&db_mutex);
+            char username[100];
+            memset(username, 0, sizeof(username));
+
+            if (read_line(client_fd, username, sizeof(username)) <= 0) {
+                pthread_mutex_unlock(&db_mutex);
+                goto cleanup;
+            }
+            
+            viewMessagesUser(client_fd, username);
+            pthread_mutex_unlock(&db_mutex);
+            break;
+            }
         default:
-            // Handle unknown choice
+            perror("Invalid input\n");
             break;
     }
 

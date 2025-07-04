@@ -56,4 +56,8 @@ public class Message {
     public void setContent(String substring) {
         this.content = substring;
     }
+
+    public void setSender(String substring) {
+        this.admin = substring;
+    }
 }
