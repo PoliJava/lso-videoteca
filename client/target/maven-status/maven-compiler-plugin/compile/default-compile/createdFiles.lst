@@ -1,13 +1,18 @@
+com\videoteca\ViewMessageAdminController$1$1.class
 com\videoteca\Session.class
+com\videoteca\ViewMessagesController$1.class
 com\videoteca\ViewRentalsController$1.class
+com\videoteca\AdminDashboardController$1.class
 com\videoteca\UserDashboardController.class
 com\videoteca\Rental.class
 com\videoteca\ViewMoviesAdminController.class
 com\videoteca\App.class
 com\videoteca\RegisterController.class
 module-info.class
+com\videoteca\AdminDashboardController$1$1.class
 com\videoteca\ViewMessagesController.class
 com\videoteca\ViewRentalsController$1$1.class
+com\videoteca\ViewMessageAdminController$1.class
 com\videoteca\CartItem.class
 com\videoteca\AdminLoginController.class
 com\videoteca\LoginController.class
@@ -17,6 +22,8 @@ com\videoteca\ViewCartController$1.class
 com\videoteca\ViewMoviesController$1$1.class
 com\videoteca\ViewRentalsController.class
 com\videoteca\ViewMoviesController.class
+com\videoteca\ViewMessageAdminController.class
+com\videoteca\ViewMessagesController$1$1.class
 com\videoteca\Movie.class
 com\videoteca\RentalMovie.class
 com\videoteca\LandingController.class

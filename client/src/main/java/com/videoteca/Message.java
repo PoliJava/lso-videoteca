@@ -18,7 +18,11 @@ public class Message {
     }
 
     public Message() {
-        //TODO Auto-generated constructor stub
+            this.admin = "";
+            this.user = "";
+            this.title = "";
+            this.expireDate = "";
+            this.content = "";
     }
 
     public String getAdmin() {
@@ -60,4 +64,20 @@ public class Message {
     public void setSender(String substring) {
         this.admin = substring;
     }
+
+        public void setExpireDate(String substring) {
+        this.expireDate = substring;
+    }
+
+    @Override
+    public String toString() {
+     return "Message{" +
+            "title='" + title + '\'' +
+            ", sender='" + admin + '\'' +
+            ", user='" + user + '\'' +
+            ", content='" + content + '\'' +
+            '}';
+}
+
+
 }

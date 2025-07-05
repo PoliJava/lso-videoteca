@@ -698,7 +698,7 @@ static void viewMessagesAdmin(int client_fd/*, char* adminname*/) {
 
 static void viewMessagesUser(int client_fd, const char *username){
     sqlite3_stmt *stmt;
-    const char *sql = "SELECT title, sender, username, message FROM messages WHERE username = ?";
+    const char *sql = "SELECT m.title, m.sender, m.username, m.message, r.returndate FROM messages as m JOIN rentals as r ON m.movieId = r.movieId AND m.username = r.username WHERE m.username = ?";
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, 0) == SQLITE_OK) {
         sqlite3_bind_text(stmt, 1, username, -1, SQLITE_STATIC);
@@ -707,10 +707,12 @@ static void viewMessagesUser(int client_fd, const char *username){
             const char *sender = (const char*)sqlite3_column_text(stmt, 1);
             const char *username = (const char*)sqlite3_column_text(stmt, 2);
             const char *message = (const char*)sqlite3_column_text(stmt, 3);
+            const char *returndate = (const char*)sqlite3_column_text(stmt, 4);
             dprintf(client_fd, "TITLE:%s\n", title);
             dprintf(client_fd, "SENDER:%s\n", sender);
             dprintf(client_fd, "USER:%s\n", username);
             dprintf(client_fd, "TEXT:%s\n", message);
+            dprintf(client_fd, "EXPIRE:%s\n", returndate);
         }
         write(client_fd, "END\n", 4);
         sqlite3_finalize(stmt);

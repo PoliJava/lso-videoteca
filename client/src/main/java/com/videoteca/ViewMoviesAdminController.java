@@ -1,14 +1,17 @@
 package com.videoteca;
 
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
@@ -31,33 +34,36 @@ public class ViewMoviesAdminController {
 
     @FXML
     private void initialize() throws SQLException {
-        titleColumn.setCellValueFactory(new PropertyValueFactory<>("title"));
-        copiesColumn.setCellValueFactory(new PropertyValueFactory<>("copies"));
-        rentedColumn.setCellValueFactory(new PropertyValueFactory<>("rents"));
+    try (Socket socket = new Socket("localhost", 8080);
+         PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+         BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
-        loadMoviesFromDatabase();
-    }
+        // Request movies (scelta = 10)
+        out.println("10");
 
-    private void loadMoviesFromDatabase() throws SQLException {
-        String url = "jdbc:sqlite:" + System.getProperty("user.dir") + "/server/videoteca.db";
-       
-
-        String sql = "SELECT id, title, totalCopies, availableCopies FROM movies";
-
-        try (Connection conn = DriverManager.getConnection(url);
-                Statement stmt = conn.createStatement();
-                ResultSet rs = stmt.executeQuery(sql)) {
-            while (rs.next()) {
+        // Read response
+        String line;
+        while ((line = in.readLine()) != null && !line.equals("END_OF_DATA")) {
+            String[] parts = line.split("\\|");
+            if (parts.length >= 6) {
                 movieList.add(new Movie(
-                        rs.getInt("id"),
-                        rs.getString("title"),
-                        rs.getInt("copies"),
-                        rs.getInt("rentedCopies")));
+                    Integer.parseInt(parts[0]),  // id
+                    parts[1],                   // title
+                    parts[2],                   // genre
+                    Integer.parseInt(parts[3]),  // duration
+                    Integer.parseInt(parts[4]),  // availableCopies
+                    Integer.parseInt(parts[5])   // totalCopies
+                ));
             }
-            movieTable.setItems(movieList);
-
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
+
+        // Update TableView on JavaFX thread
+        Platform.runLater(() -> movieTable.setItems(movieList));
+
+    } catch (IOException e) {
+        e.printStackTrace();
+        Platform.runLater(() -> 
+            new Alert(Alert.AlertType.ERROR, "Server connection failed: " + e.getMessage()).show());
+    }
     }
 }

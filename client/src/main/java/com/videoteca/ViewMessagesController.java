@@ -5,6 +5,7 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button; // Import Button
 import javafx.scene.control.TableCell; // Import TableCell
 import javafx.scene.control.TableColumn;
@@ -45,19 +46,33 @@ public class ViewMessagesController {
 
     @FXML
     public void initialize() throws Exception {
-        // Initialize existing columns
+          try {
+        // Initialize columns
         adminColumn.setCellValueFactory(new PropertyValueFactory<>("admin"));
         titleColumn.setCellValueFactory(new PropertyValueFactory<>("title"));
         expireDateColumn.setCellValueFactory(new PropertyValueFactory<>("expireDate"));
+        setupDetailsButtonColumn();
 
-        // Initialize the NEW button column
-        setupDetailsButtonColumn(); // Call the new setup method
-
-        // Initialize the list BEFORE loading data
         messageList = FXCollections.observableArrayList();
         messagesTable.setItems(messageList);
 
-        loadMessagesFromDatabase();
+        // Load messages with logging
+        System.out.println("Loading messages for user: " + Session.username);
+        List<Message> loadedMessages = loadMessagesFromDatabase();
+        System.out.println("Successfully loaded " + loadedMessages.size() + " messages");
+        
+        messageList.setAll(loadedMessages);
+        
+    } catch (Exception e) {
+        System.err.println("Error initializing messages view: " + e.getMessage());
+        e.printStackTrace();
+        // Optionally show alert to user
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Error");
+        alert.setHeaderText("Failed to load messages");
+        alert.setContentText(e.getMessage());
+        alert.showAndWait();
+    }
 
     }
 
@@ -102,43 +117,56 @@ public class ViewMessagesController {
 
 
   private List<Message> loadMessagesFromDatabase() throws Exception {
-        List<Message> messages = new ArrayList<>();
+         List<Message> messages = new ArrayList<>();
+        System.out.println("Loading messages for user: " + Session.username);
 
-        try (Socket socket = new Socket("localhost", 8080);
-                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+         try (Socket socket = new Socket("localhost", 8080);
+         PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+         BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
-            out.println("15");
+        out.println("15");
+        out.println(Session.username);
 
-            int expectedRecords = 0;
-            int currentRecord = 0;
-            Message message = null;
+        Message currentMessage = null;
+        String line;
+        int messageCount = 0;
 
-            String line;
-            while ((line = in.readLine()) != null && !line.equals("END")) {
-                if (line.startsWith("TITLE:")) {
-                    message = new Message();
-                    message.setTitle(line.substring(6));
-                } else if (line.startsWith("SENDER:")) {
-                    if (message != null)
-                        message.setSender(line.substring(7)); 
-                } else if (line.startsWith("USER:")) {
-                    if (message != null)
-                        message.setUser(line.substring(5)); 
-                } else if (line.startsWith("TEXT:")) {
-                    if (message != null)
-                        message.setContent(line.substring(5));
-                } 
-
-                if(message != null && message.getUser().equals(Session.username)){
-                    messages.add(message);
-                } 
-
+        while ((line = in.readLine()) != null && !line.equals("END")) {
+            System.out.println("Received line: " + line);
+            
+            if (line.startsWith("TITLE:")) {
+                // Start a new message
+                currentMessage = new Message();
+                currentMessage.setTitle(line.substring(6));
+                System.out.println("New message started with title: " + currentMessage.getTitle());
+            } 
+            else if (line.startsWith("SENDER:") && currentMessage != null) {
+                currentMessage.setSender(line.substring(7));
+            } 
+            else if (line.startsWith("USER:") && currentMessage != null) {
+                currentMessage.setUser(line.substring(5));
+            } 
+            else if (line.startsWith("TEXT:") && currentMessage != null) {
+                currentMessage.setContent(line.substring(5));
+                 } 
+            else if (line.startsWith("EXPIRE:") && currentMessage != null) {
+                currentMessage.setExpireDate(line.substring(7));
+                
+                // Only add the message when we have all fields
+                messages.add(currentMessage);
+                messageCount++;
+                System.out.println("Added complete message: " + currentMessage);
+                
+                // Reset for next message
+                currentMessage = null;
             }
-
-            System.out.println("Received " + currentRecord + " of " + expectedRecords + " records");
         }
-        return messages;
+        System.out.println("Finished loading, total messages: " + messageCount);
+    } catch (IOException e) {
+        System.err.println("Network error loading messages: " + e.getMessage());
+        throw e;
+    }
+    return messages;
     }
 
 
