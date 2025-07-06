@@ -126,7 +126,7 @@ public class ViewCartController {
         
 
          try {
-        Socket socket = new Socket("localhost", 8080);
+        Socket socket = new Socket("videoteca-server", 8080);
         PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
         BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
@@ -172,7 +172,7 @@ public class ViewCartController {
 
     private void deleteFromCart(int id){
      try {
-        Socket socket = new Socket("localhost", 8080);
+        Socket socket = new Socket("videoteca-server", 8080);
         PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
         BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
@@ -211,7 +211,7 @@ public class ViewCartController {
     private void handleCheckout(ArrayList<Integer> toRent, int rows) throws UnknownHostException, IOException {
     System.out.println("Checkout cliccato!");
 
-        Socket socket = new Socket("localhost", 8080);
+        Socket socket = new Socket("videoteca-server", 8080);
         BufferedWriter out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
         BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 

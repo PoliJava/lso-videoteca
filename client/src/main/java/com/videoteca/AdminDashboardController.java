@@ -197,7 +197,7 @@ public class AdminDashboardController {
     }
 
       private void sendMessageToServer(String adminUsername, String username, String movieTitle, int movieId, String messageContent) {
-        try (Socket socket = new Socket("localhost", 8080);
+        try (Socket socket = new Socket("videoteca-server", 8080);
              PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
              BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
@@ -292,7 +292,7 @@ public class AdminDashboardController {
     private List<Movie> fetchMoviesFromServer() throws Exception {
         List<Movie> movies = new ArrayList<>();
 
-        try (Socket socket = new Socket("localhost", 8080);
+        try (Socket socket = new Socket("videoteca-server", 8080);
                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
@@ -321,7 +321,7 @@ public class AdminDashboardController {
     private List<Rental> fetchRentalsFromServer() throws Exception {
         List<Rental> rentals = new ArrayList<>();
 
-        try (Socket socket = new Socket("localhost", 8080);
+        try (Socket socket = new Socket("videoteca-server", 8080);
                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
@@ -435,7 +435,7 @@ public class AdminDashboardController {
     private boolean addMovieToServer(Movie movie) throws Exception {
         System.out.println("Attempting to add movie: " + movie.getTitle());
 
-        try (Socket socket = new Socket("localhost", 8080);
+        try (Socket socket = new Socket("videoteca-server", 8080);
                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
@@ -477,7 +477,7 @@ public class AdminDashboardController {
     }
 
     private void debugCheckMovies() {
-        try (Socket socket = new Socket("localhost", 8080);
+        try (Socket socket = new Socket("videoteca-server", 8080);
                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
@@ -495,7 +495,7 @@ public class AdminDashboardController {
     
     private List<Message> fetchMessagesFromServer() throws IOException {
     List<Message> messages = new ArrayList<>();
-    try (Socket socket = new Socket("localhost", 8080);
+    try (Socket socket = new Socket("videoteca-server", 8080);
          PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
          BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
         

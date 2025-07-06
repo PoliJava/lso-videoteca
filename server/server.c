@@ -148,11 +148,11 @@ int read_line(int fd, char *buffer, size_t max_len)
     return i;
 }
 
-void setupDatabase()
+void setupDatabase(const char* db_path)
 {
-    const char *dbName = "videoteca.db";
+    //const char *dbName = "videoteca.db";
     int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX;
-    if (sqlite3_open_v2(dbName, &db, flags, NULL) != SQLITE_OK)
+    if (sqlite3_open_v2(db_path, &db, flags, NULL) != SQLITE_OK)
     {
         fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
         exit(1);
@@ -1117,7 +1117,9 @@ cleanup:
 
 int main()
 {
-    setupDatabase();
+    const char* db_path = getenv("DB_PATH") ? getenv("DB_PATH") : "/data/videoteca.db";
+    int port = getenv("PORT") ? atoi(getenv("PORT")) : 8080;
+    setupDatabase(db_path);
     int fd1;
     struct sockaddr_in server_address, client_address;
     socklen_t client_len = sizeof(client_address);

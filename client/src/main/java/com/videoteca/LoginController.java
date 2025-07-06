@@ -32,7 +32,7 @@ public class LoginController {
         }
 
         //Connessione al server
-        try(Socket socket = new Socket("localhost", 8080);
+        try(Socket socket = new Socket("videoteca-server", 8080);
             OutputStream output = socket.getOutputStream();
             InputStream input = socket.getInputStream()) {
 

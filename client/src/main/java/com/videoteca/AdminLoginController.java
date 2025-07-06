@@ -3,7 +3,7 @@ package com.videoteca;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.classfile.Label;
+import javafx.scene.control.Label;
 import java.net.Socket;
 
 import javafx.fxml.FXML;
@@ -35,7 +35,7 @@ public class AdminLoginController {
             return;
         }
 
-        try (Socket socket = new Socket("localhost", 8080);
+        try (Socket socket = new Socket("videoteca-server", 8080);
                 OutputStream output = socket.getOutputStream();
                 InputStream input = socket.getInputStream()) {
 

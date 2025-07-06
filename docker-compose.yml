@@ -1,0 +1,30 @@
+# docker-compose.yml
+
+services:
+  videoteca-server:
+    build:
+      context: ./server 
+      dockerfile: Dockerfile 
+    ports:
+      - "8080:8080" 
+    volumes:
+      - videoteca_data:/data
+    environment:
+      - DB_PATH=/data/videoteca.db
+      - PORT=8080
+    restart: on-failure 
+
+
+  videoteca-client:
+    build:
+      context: ./client 
+      dockerfile: Dockerfile
+    depends_on:
+      - videoteca-server #si assicura che il server parta prima
+    environment:
+      # Forwarding di X11 per Windows/WSL2
+      - DISPLAY=host.docker.internal:0.0
+
+
+volumes:
+  videoteca_data:

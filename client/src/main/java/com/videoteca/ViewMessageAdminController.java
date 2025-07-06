@@ -105,7 +105,7 @@ public class ViewMessageAdminController {
  private List<Message> loadMessagesFromDatabase() throws Exception {
         List<Message> messages = new ArrayList<>();
 
-        try (Socket socket = new Socket("localhost", 8080);
+        try (Socket socket = new Socket("videoteca-server", 8080);
                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
