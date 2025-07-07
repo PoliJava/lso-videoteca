@@ -16,7 +16,7 @@ public class Movie {
         this.copies = copies;
     }
 
-     Movie(int id, String title, String genre, int duration, int copies, int totalCopies) {
+    Movie(int id, String title, String genre, int duration, int copies, int totalCopies) {
         this.id = id;
         this.title = title;
         this.genre = genre;
@@ -24,7 +24,6 @@ public class Movie {
         this.copies = copies;
         this.totalCopies = totalCopies;
     }
-
 
     Movie(int id, String title, int copies, int totalCopies) {
         this.id = id;

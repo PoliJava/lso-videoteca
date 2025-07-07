@@ -42,10 +42,9 @@ public class UserDashboardController {
         FXMLLoader loader = new FXMLLoader(getClass().getResource(page));
         Node node = loader.load();
 
-        // Passaggio dell'username se si tratta della pagina del carrello
         if (page.equals("viewCart.fxml")) {
             ViewCartController controller = loader.getController();
-            controller.setUsername(Session.getUsername()); // <-- sostituisci con l'username reale
+            controller.setUsername(Session.getUsername());
             controller.loadCartItems();
         }
 

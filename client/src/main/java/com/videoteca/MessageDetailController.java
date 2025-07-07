@@ -14,13 +14,13 @@ public class MessageDetailController {
     private Text messageContentText;
 
     /*
-     * Sets the message details to be displayed in the pop-up.
-     * @param message The Message object containing the details.
+     * Setta i dettagli del messaggio da visualizzare nel pop-up.
+     * 
+     * @param message Il messaggio da visualizzare.
      */
     public void setMessage(Message message) {
         if (message != null) {
             titleLabel.setText(message.getTitle());
-            // Assuming 'admin' field in Message class represents the sender
             senderLabel.setText("From: " + message.getAdmin() + " (User: " + message.getUser() + ")");
             messageContentText.setText(message.getContent());
         }

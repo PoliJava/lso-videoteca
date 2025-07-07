@@ -39,11 +39,9 @@ public class AdminLoginController {
                 OutputStream output = socket.getOutputStream();
                 InputStream input = socket.getInputStream()) {
 
-            // Invia al server la scelta 2
             output.write("9\n".getBytes());
             output.flush();
 
-            // Invia username e password al server
             output.write((username + "\n").getBytes());
             output.flush();
             output.write((password + "\n").getBytes());

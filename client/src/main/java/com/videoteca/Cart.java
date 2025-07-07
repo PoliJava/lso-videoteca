@@ -1,6 +1,5 @@
 package com.videoteca;
 
-// Cart.java
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,4 +18,3 @@ public class Cart {
         items.clear();
     }
 }
-

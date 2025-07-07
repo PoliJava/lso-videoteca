@@ -1,7 +1,9 @@
 package com.videoteca;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
 
@@ -26,9 +28,8 @@ public class RegisterController {
         String username = usernameField.getText();
         String password = passwordField.getText();
 
-        if(username.isEmpty() || password.isEmpty()) {
-            // Show an error message to the user
-            System.out.println("Username and password cannot be empty.");
+        if (username.isEmpty() || password.isEmpty()) {
+            System.out.println("Username e Password non possono essere vuoti.");
             Alert alert = new Alert(AlertType.ERROR);
             alert.setTitle("Credenziali vuote");
             alert.setHeaderText(null);
@@ -37,32 +38,59 @@ public class RegisterController {
             return;
         }
 
-        //Connessione al server
-        try(Socket socket = new Socket("videoteca-server", 8080);
-            OutputStream output = socket.getOutputStream();
-            InputStream input = socket.getInputStream()) {
+        // Connessione al server
+        try (Socket socket = new Socket("videoteca-server", 8080);
+                OutputStream output = socket.getOutputStream();
+                InputStream input = socket.getInputStream()) {
 
-                //Invia al server la scelta 1
-                output.write("1\n".getBytes());
+            output.write("1\n".getBytes());
 
-                //Invia username e password al server
-                output.write((username + "\n").getBytes());
-                output.write((password + "\n").getBytes());
+            output.write((username + "\n").getBytes());
+            output.write((password + "\n").getBytes());
 
-                System.out.println("Dati di registrazione inviati al server.");
+            output.flush();
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(input));
+            String response = reader.readLine();
+            System.out.println("Server response: " + response);
+
+            if (response == null) {
+                Alert alert = new Alert(AlertType.ERROR);
+                alert.setTitle("Errore di connessione");
+                alert.setHeaderText(null);
+                alert.setContentText("Nessuna risposta dal server");
+                alert.showAndWait();
+                return;
+            }
+
+            if ("SUCCESS".equals(response)) {
                 Alert alert = new Alert(AlertType.INFORMATION);
                 alert.setTitle("Registrazione Successo");
                 alert.setHeaderText(null);
                 alert.setContentText("Registrazione effettuata con successo!");
                 alert.showAndWait();
+                App.setRoot("landing");
+            } else if ("ERROR:USERNAME_EXISTS".equals(response)) {
+                Alert alert = new Alert(AlertType.ERROR);
+                alert.setTitle("Registrazione Fallita");
+                alert.setHeaderText(null);
+                alert.setContentText("Username già esistente. Scegli un altro username.");
+                alert.showAndWait();
+            } else {
+                Alert alert = new Alert(AlertType.ERROR);
+                alert.setTitle("Registrazione Fallita");
+                alert.setHeaderText(null);
+                alert.setContentText("Errore durante la registrazione: " + response);
+                alert.showAndWait();
+            }
 
-             } catch(IOException e) {
+        } catch (IOException e) {
+            Alert alert = new Alert(AlertType.ERROR);
+            alert.setTitle("Errore di Connessione");
+            alert.setHeaderText(null);
+            alert.setContentText("Impossibile connettersi al server: " + e.getMessage());
+            alert.showAndWait();
             e.printStackTrace();
-            System.out.println("Errore durante la connessione al server.");
-            return;
         }
-
-
-        App.setRoot("landing");
     }
 }

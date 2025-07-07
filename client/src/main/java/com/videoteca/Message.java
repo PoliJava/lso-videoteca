@@ -18,11 +18,11 @@ public class Message {
     }
 
     public Message() {
-            this.admin = "";
-            this.user = "";
-            this.title = "";
-            this.expireDate = "";
-            this.content = "";
+        this.admin = "";
+        this.user = "";
+        this.title = "";
+        this.expireDate = "";
+        this.content = "";
     }
 
     public String getAdmin() {
@@ -54,7 +54,7 @@ public class Message {
     }
 
     public void setUser(String substring) {
-       this.user = substring;
+        this.user = substring;
     }
 
     public void setContent(String substring) {
@@ -65,19 +65,18 @@ public class Message {
         this.admin = substring;
     }
 
-        public void setExpireDate(String substring) {
+    public void setExpireDate(String substring) {
         this.expireDate = substring;
     }
 
     @Override
     public String toString() {
-     return "Message{" +
-            "title='" + title + '\'' +
-            ", sender='" + admin + '\'' +
-            ", user='" + user + '\'' +
-            ", content='" + content + '\'' +
-            '}';
-}
-
+        return "Message{" +
+                "title='" + title + '\'' +
+                ", sender='" + admin + '\'' +
+                ", user='" + user + '\'' +
+                ", content='" + content + '\'' +
+                '}';
+    }
 
 }

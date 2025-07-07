@@ -24,13 +24,11 @@
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
             <version>${javafx.version}</version>
-            <!-- REMOVED: <classifier>win</classifier> -->
         </dependency>
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-fxml</artifactId>
             <version>${javafx.version}</version>
-            <!-- REMOVED: <classifier>win</classifier> -->
         </dependency>
     </dependencies>
 
@@ -42,10 +40,8 @@
                 <version>3.12.1</version>
                 <configuration>
                     <release>${maven.compiler.release}</release>
-                    <!-- Add compiler arguments for JavaFX modules -->
                     <compilerArgs>
                         <arg>--module-path</arg>
-                        <!-- Point to where maven-dependency-plugin will copy the modules -->
                         <arg>${project.build.directory}/lib</arg>
                         <arg>--add-modules</arg>
                         <arg>javafx.controls,javafx.fxml</arg>
@@ -53,38 +49,37 @@
                 </configuration>
             </plugin>
 
-            <!-- NEW PLUGIN: maven-dependency-plugin to copy JavaFX modules -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.6.1</version> <!-- Use a recent version -->
+                <version>3.6.1</version> 
                 <executions>
                     <execution>
                         <id>copy-javafx-dependencies</id>
-                        <phase>generate-resources</phase> <!-- Run before compilation -->
+                        <phase>generate-resources</phase> 
                         <goals>
                             <goal>copy-dependencies</goal>
                         </goals>
                         <configuration>
                             <outputDirectory>${project.build.directory}/lib</outputDirectory>
                             <includeGroupIds>org.openjfx</includeGroupIds>
-                            <stripVersion>true</stripVersion> <!-- Optional: removes version from filenames -->
+                            <stripVersion>true</stripVersion> 
                         </configuration>
                     </execution>
                 </executions>
             </plugin>
 
-            <!-- NEW PLUGIN: maven-jar-plugin to configure the JAR manifest -->
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.3.0</version> <!-- Use a recent version -->
+                <version>3.3.0</version> 
                 <configuration>
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>com.videoteca.App</mainClass> <!-- Set your main class here -->
+                            <mainClass>com.videoteca.App</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -98,7 +93,6 @@
                     <mainClass>com.videoteca.App</mainClass>
                     <launcher>app</launcher>
                 </configuration>
-                <!-- REMOVED: The <executions> block for copy-dependencies from here -->
             </plugin>
         </plugins>
     </build>

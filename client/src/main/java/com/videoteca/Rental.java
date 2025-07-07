@@ -4,15 +4,14 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
-public class Rental{
+public class Rental {
     private int movieId;
     private String title;
     private String username;
     private String rentalDate;
     private String expirationDate;
-    
 
-    Rental(int id, String title, String name, String date, String expiration){
+    Rental(int id, String title, String name, String date, String expiration) {
         this.movieId = id;
         this.title = title;
         this.username = name;
@@ -20,53 +19,54 @@ public class Rental{
         this.expirationDate = expiration;
     }
 
-
     public Rental() {
-        //TODO Auto-generated constructor stub
+        this.movieId = 0;
+        this.title = "";
+        this.username = "";
+        this.rentalDate = "";
+        this.expirationDate = "";
     }
 
-
-    public int getMovieId(){
+    public int getMovieId() {
         return this.movieId;
     }
 
-    public void setMovieId(int id){
+    public void setMovieId(int id) {
         this.movieId = id;
     }
 
-    public String getTitle(){
+    public String getTitle() {
         return this.title;
     }
 
-    public void setTitle(String title){
+    public void setTitle(String title) {
         this.title = title;
     }
 
-    public String getUsername(){
+    public String getUsername() {
         return this.username;
     }
 
-    public void setUsername(String user){
+    public void setUsername(String user) {
         this.username = user;
     }
 
-    public String getRentalDate(){
+    public String getRentalDate() {
         return this.rentalDate;
     }
 
-    public void setRentalDate(String rent){
+    public void setRentalDate(String rent) {
         this.rentalDate = rent;
     }
 
-    public String getExpirationDate(){
+    public String getExpirationDate() {
         return this.expirationDate;
     }
 
-    public void setExpirationDate(String exp){
-        this.expirationDate = exp;      
+    public void setExpirationDate(String exp) {
+        this.expirationDate = exp;
     }
 
-        
     public boolean isExpired() {
         if (this.expirationDate == null || this.expirationDate.isEmpty()) {
             return false; // Cannot determine if expired without a return date
@@ -81,7 +81,5 @@ public class Rental{
             return false; // Treat as not expired if date is unparseable
         }
     }
-
-
 
 }

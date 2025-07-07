@@ -22,7 +22,12 @@ public class RentalMovie {
     }
 
     public RentalMovie() {
-    // // cosa ci mettiamo qui?
+        this.id = 0;
+        this.title = "";
+        this.genre = "";
+        this.duration = 0;
+        this.rentalDate = "";
+        this.expirationDate = "";
     }
 
     public String getTitle() {
@@ -57,8 +62,8 @@ public class RentalMovie {
         this.expirationDate = x;
     }
 
-    //controlla se la data di scadenza del prestito è arrivata
-    
+    // controlla se la data di scadenza del prestito è arrivata
+
     public boolean isExpired() {
         if (this.expirationDate == null || this.expirationDate.isEmpty()) {
             return false; // Cannot determine if expired without a return date

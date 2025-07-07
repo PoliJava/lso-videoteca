@@ -19,9 +19,6 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.time.LocalDate; // Import for date comparison
-import java.time.format.DateTimeFormatter; // Import for date formatting
-import java.time.format.DateTimeParseException; // Import for date parsing
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -41,19 +38,18 @@ public class AdminDashboardController {
     private Button viewMoviesButton;
 
     @FXML
-    private Button viewRentedMoviesButton; 
+    private Button viewRentedMoviesButton;
 
     @FXML
     private Button viewNotificationsButton;
 
     private TableColumn<Rental, Void> remindButtonColumn;
 
-    
     @FXML
     private void initialize() {
         welcomeLabel.setText("Benvenuto, Amministratore");
         handleViewMoviesAdmin(); // Load movies by default
-        
+
     }
 
     @FXML
@@ -101,8 +97,6 @@ public class AdminDashboardController {
         }
     }
 
-
-
     @FXML
     private void handleViewRentedMoviesAdmin() {
         try {
@@ -140,7 +134,7 @@ public class AdminDashboardController {
         }
     }
 
-      private void setupRemindButtonColumn(TableColumn<Rental, Void> column) {
+    private void setupRemindButtonColumn(TableColumn<Rental, Void> column) {
         Callback<TableColumn<Rental, Void>, TableCell<Rental, Void>> cellFactory = new Callback<>() {
             @Override
             public TableCell<Rental, Void> call(final TableColumn<Rental, Void> param) {
@@ -148,12 +142,10 @@ public class AdminDashboardController {
                     private final Button btn = new Button("Remind");
 
                     {
-                        // Set button style
-                        btn.setStyle("-fx-background-color: #dc3545; -fx-text-fill: white;"); // Red button for overdue
-                        // Action when the button is clicked
+                        btn.setStyle("-fx-background-color: #dc3545; -fx-text-fill: white;");
                         btn.setOnAction(event -> {
                             Rental rentedMovie = getTableView().getItems().get(getIndex());
-                            showSendMessageDialog(rentedMovie); // Open message dialog
+                            showSendMessageDialog(rentedMovie);
                         });
                     }
 
@@ -161,14 +153,14 @@ public class AdminDashboardController {
                     public void updateItem(Void item, boolean empty) {
                         super.updateItem(item, empty);
                         if (empty) {
-                            setGraphic(null); // No button if row is empty
+                            setGraphic(null);
                         } else {
                             Rental rentedMovie = getTableView().getItems().get(getIndex());
                             // Show button only if the rental is expired
                             if (rentedMovie != null && rentedMovie.isExpired()) {
                                 setGraphic(btn);
                             } else {
-                                setGraphic(null); // Hide button if not expired
+                                setGraphic(null);
                             }
                         }
                     }
@@ -178,28 +170,31 @@ public class AdminDashboardController {
         };
 
         column.setCellFactory(cellFactory);
-        column.setPrefWidth(100); // Set a reasonable width for the button column
-        column.setResizable(false); // Make it not resizable
+        column.setPrefWidth(100);
+        column.setResizable(false);
     }
 
-     private void showSendMessageDialog(Rental rentedMovie) {
+    private void showSendMessageDialog(Rental rentedMovie) {
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Send Reminder Message");
-        dialog.setHeaderText("Send a message to " + rentedMovie.getUsername() + " about '" + rentedMovie.getTitle() + "'");
+        dialog.setHeaderText(
+                "Send a message to " + rentedMovie.getUsername() + " about '" + rentedMovie.getTitle() + "'");
         dialog.setContentText("Message:");
 
         Optional<String> result = dialog.showAndWait();
         result.ifPresent(messageContent -> {
             // Placeholder for admin username (replace with actual logged-in admin username)
             String adminUsername = "AdminUser";
-            sendMessageToServer(adminUsername, rentedMovie.getUsername(), rentedMovie.getTitle(), rentedMovie.getMovieId(), messageContent);
+            sendMessageToServer(adminUsername, rentedMovie.getUsername(), rentedMovie.getTitle(),
+                    rentedMovie.getMovieId(), messageContent);
         });
     }
 
-      private void sendMessageToServer(String adminUsername, String username, String movieTitle, int movieId, String messageContent) {
+    private void sendMessageToServer(String adminUsername, String username, String movieTitle, int movieId,
+            String messageContent) {
         try (Socket socket = new Socket("videoteca-server", 8080);
-             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
             // Step 1: Send the command number
             out.println("13");
@@ -263,31 +258,30 @@ public class AdminDashboardController {
 
     @FXML
     private void handleViewNotificationsAdmin() throws UnknownHostException, IOException {
-    try {
-        List<Message> messages = fetchMessagesFromServer(); // Actually fetch messages
-        TableView<Message> tableView = new TableView<>();
-        
-        TableColumn<Message, String> titleCol = new TableColumn<>("Movie Title");
-        titleCol.setCellValueFactory(new PropertyValueFactory<>("title"));
-        
-        TableColumn<Message, String> userCol = new TableColumn<>("Recipient");
-        userCol.setCellValueFactory(new PropertyValueFactory<>("user"));
-        
-        TableColumn<Message, String> contentCol = new TableColumn<>("Message");
-        contentCol.setCellValueFactory(new PropertyValueFactory<>("content"));
-        
-        tableView.getColumns().addAll(titleCol, userCol, contentCol);
-        tableView.setItems(FXCollections.observableArrayList(messages));
-        
-        contentPane.getChildren().clear();
-        contentPane.getChildren().add(tableView);
-        
-    } catch (Exception e) {
-        e.printStackTrace();
-        showError("Error loading messages");
+        try {
+            List<Message> messages = fetchMessagesFromServer(); // Actually fetch messages
+            TableView<Message> tableView = new TableView<>();
+
+            TableColumn<Message, String> titleCol = new TableColumn<>("Movie Title");
+            titleCol.setCellValueFactory(new PropertyValueFactory<>("title"));
+
+            TableColumn<Message, String> userCol = new TableColumn<>("Recipient");
+            userCol.setCellValueFactory(new PropertyValueFactory<>("user"));
+
+            TableColumn<Message, String> contentCol = new TableColumn<>("Message");
+            contentCol.setCellValueFactory(new PropertyValueFactory<>("content"));
+
+            tableView.getColumns().addAll(titleCol, userCol, contentCol);
+            tableView.setItems(FXCollections.observableArrayList(messages));
+
+            contentPane.getChildren().clear();
+            contentPane.getChildren().add(tableView);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            showError("Error loading messages");
+        }
     }
-}
-    
 
     private List<Movie> fetchMoviesFromServer() throws Exception {
         List<Movie> movies = new ArrayList<>();
@@ -338,7 +332,7 @@ public class AdminDashboardController {
                     rental.setMovieId(Integer.parseInt(line.substring(8)));
                 } else if (line.startsWith("TITLE:")) {
                     if (rental != null)
-                        rental.setTitle(line.substring(6)); // Set the movie title
+                        rental.setTitle(line.substring(6));
                 } else if (line.startsWith("USERNAME:")) {
                     if (rental != null)
                         rental.setUsername(line.substring(9));
@@ -360,16 +354,14 @@ public class AdminDashboardController {
 
     @FXML
     private void handleAddMovie() {
-        // Create a dialog for adding a new movie
         Dialog<Movie> dialog = new Dialog<>();
         dialog.setTitle("Add New Movie");
         dialog.setHeaderText("Enter movie details");
 
-        // Set the button types
         ButtonType addButtonType = new ButtonType("Add", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(addButtonType, ButtonType.CANCEL);
 
-        // Create the form
+        // Crea form
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
@@ -395,16 +387,17 @@ public class AdminDashboardController {
 
         dialog.getDialogPane().setContent(grid);
 
-        // Convert the result to a Movie object when the Add button is clicked
+        // Converte il risultato in un oggetto Movie quando il pulsante Aggiungi viene
+        // cliccato
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == addButtonType) {
                 try {
                     return new Movie(
-                            0, // ID will be assigned by database
+                            0, // ID assegnato da db
                             titleField.getText(),
                             genreField.getText(),
                             Integer.parseInt(durationField.getText()),
-                            0, // Available copies will be set equal to total copies by server
+                            0, // Available copies saranno settate uguali alle total copies dal server
                             Integer.parseInt(copiesField.getText()));
                 } catch (NumberFormatException e) {
                     showError("Invalid number format");
@@ -421,7 +414,7 @@ public class AdminDashboardController {
                 boolean success = addMovieToServer(movie);
                 if (success) {
                     showSuccess("Movie added successfully!");
-                    handleViewMoviesAdmin(); // Refresh the movie list
+                    handleViewMoviesAdmin(); // Aggiorna lista film
                 } else {
                     showError("Failed to add movie");
                 }
@@ -459,7 +452,7 @@ public class AdminDashboardController {
 
             boolean success = "SUCCESS".equals(response);
             if (success) {
-                debugCheckMovies(); // Add this line
+                debugCheckMovies();
             }
             return success;
         } catch (Exception e) {
@@ -481,7 +474,7 @@ public class AdminDashboardController {
                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
 
-            out.println("10"); // Request movie list
+            out.println("10");
 
             System.out.println("DEBUG - Current movies in database:");
             String line;
@@ -492,36 +485,36 @@ public class AdminDashboardController {
             e.printStackTrace();
         }
     }
-    
-    private List<Message> fetchMessagesFromServer() throws IOException {
-    List<Message> messages = new ArrayList<>();
-    try (Socket socket = new Socket("videoteca-server", 8080);
-         PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-         BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
-        
-        out.println("14");
-        out.println(Session.username); // Send admin username
 
-        Message currentMessage = null;
-        String line;
-        while ((line = in.readLine()) != null && !line.equals("END")) {
-            if (line.startsWith("TITLE:")) {
-                currentMessage = new Message();
-                currentMessage.setTitle(line.substring(6));
-            } else if (line.startsWith("USER:")) {
-                if (currentMessage != null) {
-                    currentMessage.setUser(line.substring(5));
-                }
-            } else if (line.startsWith("TEXT:")) {
-                if (currentMessage != null) {
-                    currentMessage.setContent(line.substring(5));
-                    messages.add(currentMessage);
-                    currentMessage = null;
+    private List<Message> fetchMessagesFromServer() throws IOException {
+        List<Message> messages = new ArrayList<>();
+        try (Socket socket = new Socket("videoteca-server", 8080);
+                PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+
+            out.println("14");
+            out.println(Session.username);
+
+            Message currentMessage = null;
+            String line;
+            while ((line = in.readLine()) != null && !line.equals("END")) {
+                if (line.startsWith("TITLE:")) {
+                    currentMessage = new Message();
+                    currentMessage.setTitle(line.substring(6));
+                } else if (line.startsWith("USER:")) {
+                    if (currentMessage != null) {
+                        currentMessage.setUser(line.substring(5));
+                    }
+                } else if (line.startsWith("TEXT:")) {
+                    if (currentMessage != null) {
+                        currentMessage.setContent(line.substring(5));
+                        messages.add(currentMessage);
+                        currentMessage = null;
+                    }
                 }
             }
         }
+        return messages;
     }
-    return messages;
-}
 
 }
