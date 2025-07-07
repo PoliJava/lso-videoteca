@@ -50,7 +50,7 @@ public class ViewMessagesController {
             messageList = FXCollections.observableArrayList();
             messagesTable.setItems(messageList);
 
-            System.out.println("Loading messages for user: " + Session.username);
+            System.out.println("Caricando messaggi per l'utente:" + Session.username);
             List<Message> loadedMessages = loadMessagesFromDatabase();
             System.out.println("Successfully loaded " + loadedMessages.size() + " messages");
 

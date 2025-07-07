@@ -121,7 +121,7 @@ public class ViewMoviesController {
                 }
             }
 
-            // Update TableView on JavaFX thread
+         
             Platform.runLater(() -> movieTable.setItems(movieList));
 
         } catch (IOException e) {

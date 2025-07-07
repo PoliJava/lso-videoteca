@@ -94,7 +94,7 @@ public class ViewCartController {
         // Collega la colonna al metodo getTitle() della classe Movie
         titleColumn.setCellValueFactory(new PropertyValueFactory<>("title"));
         addButtonToTable(); // mette il pulsante
-        // Aggiungi un pulsante "Elimina" per ogni riga
+        
 
         if (this.username != null) {
             loadCartItems();
@@ -135,7 +135,7 @@ public class ViewCartController {
                     int duration = Integer.parseInt(parts[3]);
                     int availableCopies = Integer.parseInt(parts[4]);
 
-                    // Costruisci il Movie con solo i dati necessari
+        
                     Movie movie = new Movie();
                     movie.setTitle(title);
                     movie.setId(id);

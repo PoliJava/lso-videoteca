@@ -21,7 +21,7 @@ public class MessageDetailController {
     public void setMessage(Message message) {
         if (message != null) {
             titleLabel.setText(message.getTitle());
-            senderLabel.setText("From: " + message.getAdmin() + " (User: " + message.getUser() + ")");
+            senderLabel.setText("Da: " + message.getAdmin() + " (Utente: " + message.getUser() + ")");
             messageContentText.setText(message.getContent());
         }
     }
